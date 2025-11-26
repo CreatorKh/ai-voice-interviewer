@@ -7,81 +7,81 @@ interface WindLogoProps {
 }
 
 // Wind AI Logo inspired by Windranger from Dota 2
-// Features: Arrow/bow motif with flowing wind lines
+// Beautiful flowing wind streams
 export const WindLogo: React.FC<WindLogoProps> = ({ className = "", size = 32, variant = 'default' }) => {
-  const gradientId = variant === 'hirer' ? 'windGradientHirer' : 'windGradient';
+  const id = variant === 'hirer' ? 'h' : 'd';
   const colors = variant === 'hirer' 
-    ? { start: '#a855f7', mid: '#ec4899', end: '#8b5cf6' }
-    : { start: '#34d399', mid: '#22d3ee', end: '#10b981' };
+    ? { bg1: '#a855f7', bg2: '#ec4899', line: '#fff' }
+    : { bg1: '#10b981', bg2: '#06b6d4', line: '#fff' };
   
   return (
-  <svg 
-    width={size} 
-    height={size} 
-    viewBox="0 0 48 48" 
-    fill="none" 
-    xmlns="http://www.w3.org/2000/svg"
-    className={className}
-  >
-    {/* Background glow */}
-    <defs>
-      <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stopColor={colors.start} />
-        <stop offset="50%" stopColor={colors.mid} />
-        <stop offset="100%" stopColor={colors.end} />
-      </linearGradient>
-      <linearGradient id="arrowGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-        <stop offset="0%" stopColor="#000" />
-        <stop offset="100%" stopColor="#1a1a1a" />
-      </linearGradient>
-    </defs>
-    
-    {/* Main circle background */}
-    <circle cx="24" cy="24" r="22" fill={`url(#${gradientId})`} />
-    
-    {/* Arrow - Windranger's signature */}
-    <path 
-      d="M12 24 L36 24 M32 20 L36 24 L32 28" 
-      stroke="url(#arrowGradient)" 
-      strokeWidth="3" 
-      strokeLinecap="round" 
-      strokeLinejoin="round"
-    />
-    
-    {/* Wind flow lines - dynamic motion */}
-    <path 
-      d="M10 18 Q16 18, 20 15" 
-      stroke="#000" 
-      strokeWidth="2" 
-      strokeLinecap="round"
-      opacity="0.7"
-    />
-    <path 
-      d="M10 30 Q16 30, 20 33" 
-      stroke="#000" 
-      strokeWidth="2" 
-      strokeLinecap="round"
-      opacity="0.7"
-    />
-    
-    {/* Small accent wind line */}
-    <path 
-      d="M14 24 Q18 21, 22 24" 
-      stroke="#000" 
-      strokeWidth="1.5" 
-      strokeLinecap="round"
-      opacity="0.5"
-    />
-  </svg>
+    <svg 
+      width={size} 
+      height={size} 
+      viewBox="0 0 48 48" 
+      fill="none" 
+      xmlns="http://www.w3.org/2000/svg"
+      className={className}
+    >
+      <defs>
+        <linearGradient id={`wg${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={colors.bg1} />
+          <stop offset="100%" stopColor={colors.bg2} />
+        </linearGradient>
+      </defs>
+      
+      {/* Circle background */}
+      <circle cx="24" cy="24" r="22" fill={`url(#wg${id})`} />
+      
+      {/* Wind streams - elegant flowing curves */}
+      {/* Top wind stream */}
+      <path 
+        d="M10 16 Q18 16, 22 12 Q26 8, 34 10" 
+        stroke={colors.line} 
+        strokeWidth="2.5" 
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.9"
+      />
+      
+      {/* Middle wind stream - main, thicker */}
+      <path 
+        d="M8 24 Q16 24, 22 20 Q28 16, 38 20" 
+        stroke={colors.line} 
+        strokeWidth="3.5" 
+        strokeLinecap="round"
+        fill="none"
+      />
+      
+      {/* Bottom wind stream */}
+      <path 
+        d="M12 32 Q20 32, 26 28 Q32 24, 40 28" 
+        stroke={colors.line} 
+        strokeWidth="2.5" 
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.9"
+      />
+      
+      {/* Small accent swirl */}
+      <path 
+        d="M14 40 Q20 38, 24 36" 
+        stroke={colors.line} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.6"
+      />
+    </svg>
   );
 };
 
 // Compact version for smaller spaces
 export const WindLogoCompact: React.FC<WindLogoProps> = ({ className = "", size = 24, variant = 'default' }) => {
-  const gradientId = variant === 'hirer' ? 'windGradientCompactHirer' : 'windGradientCompact';
+  const id = variant === 'hirer' ? 'hc' : 'dc';
   const colors = variant === 'hirer' 
-    ? { start: '#a855f7', end: '#ec4899' }
-    : { start: '#34d399', end: '#22d3ee' };
+    ? { bg1: '#a855f7', bg2: '#ec4899', line: '#fff' }
+    : { bg1: '#10b981', bg2: '#06b6d4', line: '#fff' };
   
   return (
     <svg 
@@ -93,38 +93,38 @@ export const WindLogoCompact: React.FC<WindLogoProps> = ({ className = "", size 
       className={className}
     >
       <defs>
-        <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor={colors.start} />
-          <stop offset="100%" stopColor={colors.end} />
+        <linearGradient id={`wgc${id}`} x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stopColor={colors.bg1} />
+          <stop offset="100%" stopColor={colors.bg2} />
         </linearGradient>
       </defs>
       
       {/* Circle */}
-      <circle cx="16" cy="16" r="14" fill={`url(#${gradientId})`} />
+      <circle cx="16" cy="16" r="14" fill={`url(#wgc${id})`} />
       
-      {/* Arrow */}
+      {/* Wind streams */}
       <path 
-        d="M8 16 L24 16 M21 13 L24 16 L21 19" 
-        stroke="#000" 
+        d="M6 11 Q12 11, 15 8 Q18 5, 24 7" 
+        stroke={colors.line} 
+        strokeWidth="2" 
+        strokeLinecap="round"
+        fill="none"
+        opacity="0.85"
+      />
+      <path 
+        d="M5 16 Q11 16, 15 13 Q19 10, 26 13" 
+        stroke={colors.line} 
         strokeWidth="2.5" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-      />
-      
-      {/* Wind lines */}
-      <path 
-        d="M7 12 Q11 12, 14 10" 
-        stroke="#000" 
-        strokeWidth="1.5" 
         strokeLinecap="round"
-        opacity="0.6"
+        fill="none"
       />
       <path 
-        d="M7 20 Q11 20, 14 22" 
-        stroke="#000" 
-        strokeWidth="1.5" 
+        d="M7 21 Q13 21, 17 18 Q21 15, 27 18" 
+        stroke={colors.line} 
+        strokeWidth="2" 
         strokeLinecap="round"
-        opacity="0.6"
+        fill="none"
+        opacity="0.85"
       />
     </svg>
   );
