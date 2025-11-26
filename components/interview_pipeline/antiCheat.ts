@@ -1,14 +1,7 @@
-// antiCheat.ts
+
 import { PIPELINE_CONFIG } from "./pipelineConfig";
 import { safeGenerateJSON } from "./llmClient";
-
-export type AntiCheatReport = {
-  riskScore: number;
-  flags: string[];
-  reason: string;
-  verdict: "clean" | "suspicious" | "cheating" | "unknown";
-  heuristicOnly: boolean;
-};
+import { AntiCheatReport } from '../../types';
 
 function heuristicAntiCheat(transcript: string): AntiCheatReport {
   const toks = transcript.toLowerCase();
@@ -16,7 +9,7 @@ function heuristicAntiCheat(transcript: string): AntiCheatReport {
   let riskScore = 10;
 
   for (const bad of PIPELINE_CONFIG.thresholds.toxicKeywords) {
-    if (toks.includes(bad.toLowerCase())) {
+    if (toks.includes(bad)) {
       flags.push(`Toxic language detected: "${bad}"`);
       riskScore += 40;
     }
@@ -47,39 +40,31 @@ export async function runAntiCheat(params: {
 }): Promise<AntiCheatReport> {
   const { transcript, heuristicScores } = params;
 
-  // Even if disabled in config, we return a clean report, but let's enable it by default in logic
   if (!PIPELINE_CONFIG.antiCheat.enabled) {
-     // ...
+    return {
+      riskScore: 0,
+      flags: [],
+      reason: "Anti-cheat disabled.",
+      verdict: "unknown",
+      heuristicOnly: true,
+    };
   }
 
-  const llmResult = await safeGenerateJSON({
+  const json = await safeGenerateJSON({
     model: PIPELINE_CONFIG.models.antiCheat,
     systemPrompt: PIPELINE_CONFIG.prompts.antiCheat,
     userPrompt: `
-TRANSCRIPT OF INTERVIEW:
+TRANSCRIPT:
 ${transcript}
 
-METRICS:
-Avg Score: ${heuristicScores.avgScore}
-Turns: ${heuristicScores.turns}
-
-TASK:
-Analyze for cheating. Look for:
-1. "Perfect" textbook answers that sound like ChatGPT.
-2. Sudden shifts in style/grammar.
-3. Very specific, complex code recited without hesitation.
-4. Toxic or trolling behavior.
-
-Return a riskScore from 0 (clean) to 100 (definite cheat).
+HEURISTIC SCORES:
+${JSON.stringify(heuristicScores)}
 `,
   });
 
-  // Жесткая проверка: если LLM не сработал, используем эвристику
-  if (!llmResult.ok || !llmResult.fromLLM || !llmResult.data) {
+  if (!json) {
     return heuristicAntiCheat(transcript);
   }
-
-  const json = llmResult.data;
 
   return {
     riskScore: json.riskScore ?? 0,

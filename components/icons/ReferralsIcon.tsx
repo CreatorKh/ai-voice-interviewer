@@ -1,9 +1,9 @@
 import React from 'react';
 
-const ReferralsIcon: React.FC = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-        <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 0 0 3.741-.479 3 3 0 0 0-4.682-2.72m-7.5-2.962a3.75 3.75 0 1 0-7.5 0v.046a3.75 3.75 0 0 0 7.5 0v-.046ZM18.75 4.5a3.75 3.75 0 1 0-7.5 0v.046a3.75 3.75 0 0 0 7.5 0v-.046Z" />
+const WalletsIcon: React.FC = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4" /><path d="M3 5v14a2 2 0 0 0 2 2h16v-5" /><path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z" />
     </svg>
 );
 
-export default ReferralsIcon;
+export default WalletsIcon;

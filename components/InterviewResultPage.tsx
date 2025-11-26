@@ -1,5 +1,6 @@
+
 import React, { useState, useEffect } from 'react';
-import { InterviewResult, AppRoute, Speaker } from '../types';
+import { InterviewResult, AppRoute, Speaker, AntiCheatReport } from '../types';
 import Button from './Button';
 
 interface InterviewResultPageProps {
@@ -35,6 +36,42 @@ const Score: React.FC<{label: string; value: number; max: number}> = ({label, va
 };
 
 const LinkIcon = () => <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m13.35-.622 1.757-1.757a4.5 4.5 0 0 0-6.364-6.364l-4.5 4.5a4.5 4.5 0 0 0 1.242 7.244" /></svg>
+
+const AntiCheatCard: React.FC<{ report: AntiCheatReport }> = ({ report }) => {
+    const getVerdictColor = (verdict: AntiCheatReport['verdict']) => {
+      switch (verdict) {
+        case 'clean': return 'text-green-400';
+        case 'suspicious': return 'text-yellow-400';
+        case 'cheating': return 'text-red-400';
+        default: return 'text-neutral-400';
+      }
+    };
+  
+    return (
+      <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
+        <h2 className="text-lg font-semibold mb-3">Integrity Check</h2>
+        <div className="flex justify-between items-baseline">
+            <div>
+                <p className="text-xs text-neutral-400">Verdict</p>
+                <p className={`text-xl font-bold capitalize ${getVerdictColor(report.verdict)}`}>{report.verdict}</p>
+            </div>
+            <div className="text-right">
+                <p className="text-xs text-neutral-400">Risk Score</p>
+                <p className="text-2xl font-bold">{report.riskScore}</p>
+            </div>
+        </div>
+        {report.flags.length > 0 && (
+          <div className="mt-4 border-t border-white/10 pt-3">
+            <h3 className="text-sm font-semibold mb-2">Flags Raised</h3>
+            <ul className="list-disc list-inside space-y-1 text-sm text-neutral-300">
+              {report.flags.map((flag, i) => <li key={i}>{flag}</li>)}
+            </ul>
+          </div>
+        )}
+         <p className="text-xs text-neutral-500 mt-3">{report.reason}</p>
+      </div>
+    );
+  };
 
 const InterviewResultPage: React.FC<InterviewResultPageProps> = ({ result, isLoading, setRoute }) => {
   const [feedback, setFeedback] = useState<'helpful' | 'unhelpful' | null>(null);
@@ -91,166 +128,17 @@ const InterviewResultPage: React.FC<InterviewResultPageProps> = ({ result, isLoa
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
                     {result.evaluation?.scores ? (
                         <>
-                            <Score label="Communication" value={Math.round(result.evaluation.scores.comms / 10)} max={10}/>
-                            <Score label="Reasoning" value={Math.round(result.evaluation.scores.reasoning / 10)} max={10}/>
-                            <Score label="Domain Knowledge" value={Math.round(result.evaluation.scores.domain / 10)} max={10}/>
+                            <Score label="Communication" value={result.evaluation.scores.comms} max={10}/>
+                            <Score label="Reasoning" value={result.evaluation.scores.reasoning} max={10}/>
+                            <Score label="Domain Knowledge" value={result.evaluation.scores.domain} max={10}/>
                             <Score label="Overall" value={result.evaluation.scores.overall} max={100}/>
                         </>
                     ) : <p className="text-sm text-neutral-400 col-span-2">Scores could not be generated.</p>}
                 </div>
-                  {(result.evaluation?.detailedFeedback?.includes('quota limits') || 
-                    result.evaluation?.detailedFeedback?.includes('heuristic') ||
-                    result.evaluation?.detailedFeedback?.includes('LLM')) && (
-                    <div className="mt-3 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-                      <p className="text-xs text-yellow-400 font-medium mb-1">
-                        ⚠ Оценка основана на локальных признаках
-                      </p>
-                      <p className="text-xs text-yellow-300/80">
-                        Подробная оценка ответов была пропущена из-за ограничений квоты API. Ниже – базовый скоринг по поверхностным признакам (длина ответа, технические ключевые слова, токсичность). Для полного анализа требуется доступ к LLM.
-                      </p>
-                    </div>
-                  )}
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
                 <h2 className="text-lg font-semibold mb-2">Detailed Feedback</h2>
                 <p className="text-sm text-neutral-300 whitespace-pre-wrap">{result.evaluation?.detailedFeedback || 'No detailed feedback available.'}</p>
-                
-                {/* Parse JSON evaluation if available */}
-                {result.evaluation?.detailedFeedback && (() => {
-                  try {
-                    const parsed = JSON.parse(result.evaluation.detailedFeedback);
-                    if (parsed.verdict || parsed.overall_score !== undefined) {
-                      return (
-                        <div className="mt-4 space-y-4 pt-4 border-t border-white/10">
-                          {parsed.verdict && (
-                            <div>
-                              <h3 className="text-sm font-semibold mb-2">Verdict</h3>
-                              <p className={`text-base font-bold ${
-                                parsed.verdict === 'Strong hire' ? 'text-green-400' :
-                                parsed.verdict === 'Hire' ? 'text-green-300' :
-                                parsed.verdict === 'Borderline' ? 'text-yellow-400' :
-                                'text-red-400'
-                              }`}>
-                                {parsed.verdict}
-                              </p>
-                              {parsed.verdict_reasoning && Array.isArray(parsed.verdict_reasoning) && (
-                                <ul className="mt-2 space-y-1 text-sm text-neutral-300">
-                                  {parsed.verdict_reasoning.map((reason: string, i: number) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="text-cyan-400 mt-1">•</span>
-                                      <span>{reason}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          )}
-                          
-                          {parsed.skill_scores && Array.isArray(parsed.skill_scores) && parsed.skill_scores.length > 0 && (
-                            <div>
-                              <h3 className="text-sm font-semibold mb-2">Skill Scores</h3>
-                              <div className="space-y-2">
-                                {parsed.skill_scores.map((skill: any, i: number) => (
-                                  <div key={i} className="flex items-center justify-between text-sm">
-                                    <span className="text-neutral-300">{skill.name}</span>
-                                    <div className="flex items-center gap-2">
-                                      <div className="w-24 h-2 rounded-full bg-white/10 overflow-hidden">
-                                        <div 
-                                          className="h-full bg-cyan-400" 
-                                          style={{width: `${skill.score}%`}}
-                                        />
-                                      </div>
-                                      <span className="text-cyan-400 font-medium w-12 text-right">{skill.score}/100</span>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                          
-                          {parsed.anti_cheat && (
-                            <div>
-                              <h3 className="text-sm font-semibold mb-2">Anti-Cheat Analysis</h3>
-                              <div className={`inline-block px-3 py-1 rounded-full text-xs font-medium mb-2 ${
-                                parsed.anti_cheat.suspicion_level === 'high' ? 'bg-red-500/20 text-red-400' :
-                                parsed.anti_cheat.suspicion_level === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
-                                'bg-green-500/20 text-green-400'
-                              }`}>
-                                Risk Level: {parsed.anti_cheat.suspicion_level?.toUpperCase() || 'LOW'}
-                              </div>
-                              {parsed.anti_cheat.summary && (
-                                <p className="text-sm text-neutral-300 mt-2">{parsed.anti_cheat.summary}</p>
-                              )}
-                              {parsed.anti_cheat.signals && Array.isArray(parsed.anti_cheat.signals) && parsed.anti_cheat.signals.length > 0 && (
-                                <ul className="mt-2 space-y-1 text-sm text-neutral-400">
-                                  {parsed.anti_cheat.signals.map((signal: string, i: number) => (
-                                    <li key={i} className="flex items-start gap-2">
-                                      <span className="text-yellow-400 mt-1">⚠</span>
-                                      <span>{signal}</span>
-                                    </li>
-                                  ))}
-                                </ul>
-                              )}
-                            </div>
-                          )}
-                          
-                          {parsed.role_fit && (
-                            <div>
-                              <h3 className="text-sm font-semibold mb-2">Role Fit</h3>
-                              {parsed.role_fit.best_fit_roles && Array.isArray(parsed.role_fit.best_fit_roles) && (
-                                <div className="flex flex-wrap gap-2 mb-2">
-                                  {parsed.role_fit.best_fit_roles.map((role: string, i: number) => (
-                                    <span key={i} className="text-xs px-2 py-1 rounded-full bg-cyan-500/20 text-cyan-300">
-                                      {role}
-                                    </span>
-                                  ))}
-                                </div>
-                              )}
-                              {parsed.role_fit.notes && (
-                                <p className="text-sm text-neutral-300">{parsed.role_fit.notes}</p>
-                              )}
-                            </div>
-                          )}
-                          
-                          {parsed.next_steps && (
-                            <div>
-                              <h3 className="text-sm font-semibold mb-2">Next Steps</h3>
-                              {parsed.next_steps.recommended_rounds && Array.isArray(parsed.next_steps.recommended_rounds) && (
-                                <div className="mb-2">
-                                  <p className="text-xs text-neutral-400 mb-1">Recommended Rounds:</p>
-                                  <ul className="text-sm text-neutral-300 space-y-1">
-                                    {parsed.next_steps.recommended_rounds.map((round: string, i: number) => (
-                                      <li key={i} className="flex items-start gap-2">
-                                        <span className="text-cyan-400 mt-1">→</span>
-                                        <span>{round}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                              {parsed.next_steps.focus_points && Array.isArray(parsed.next_steps.focus_points) && (
-                                <div>
-                                  <p className="text-xs text-neutral-400 mb-1">Focus Points:</p>
-                                  <ul className="text-sm text-neutral-300 space-y-1">
-                                    {parsed.next_steps.focus_points.map((point: string, i: number) => (
-                                      <li key={i} className="flex items-start gap-2">
-                                        <span className="text-cyan-400 mt-1">•</span>
-                                        <span>{point}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    }
-                  } catch {
-                    // Not JSON, return nothing
-                  }
-                  return null;
-                })()}
             </div>
             <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
                 <h2 className="text-lg font-semibold mb-2">Transcript</h2>
@@ -292,6 +180,7 @@ const InterviewResultPage: React.FC<InterviewResultPageProps> = ({ result, isLoa
                     )}
                 </div>
             </div>
+            {result.antiCheatReport && <AntiCheatCard report={result.antiCheatReport} />}
             {result.application.profileSummary && (
                 <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
                     <h2 className="text-lg font-semibold mb-2">AI-Inferred Profile Summary</h2>

@@ -1,217 +1,63 @@
-// constants.ts
 
-export const MOCK_JOBS = [
-  {
-    id: 1,
-    title: 'Data Scientist',
-    description: 'We are looking for an experienced Data Scientist to join our team. You will work on machine learning models, data pipelines, and statistical analysis. Experience with Python, SQL, and ML frameworks required.',
-    rate_min: 100,
-    rate_max: 120,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 6,
-    hired_this_month: 5,
-  },
-  {
-    id: 2,
-    title: 'Data Analyst',
-    description: 'Join our team as a Data Analyst. You will work on product analytics, build dashboards, analyze user behavior, and help product teams make data-driven decisions. Strong SQL and analytical skills required.',
-    rate_min: 60,
-    rate_max: 90,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 4,
-    hired_this_month: 8,
-  },
-  {
-    id: 3,
-    title: 'Antifraud Specialist',
-    description: 'We need an Antifraud Specialist to help protect our payment systems. You will design rule-based systems, work with ML models for fraud detection, balance false positives/negatives, and collaborate with KYC/AML teams. Experience with transaction monitoring and fraud patterns required.',
-    rate_min: 80,
-    rate_max: 140,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 3,
-    hired_this_month: 19,
-  },
-  {
-    id: 4,
-    title: 'ML Engineer',
-    description: 'Looking for an ML Engineer to deploy and maintain ML models in production. You will work on feature pipelines, model serving, monitoring, and optimization. Experience with MLOps, model deployment, and production ML systems required.',
-    rate_min: 90,
-    rate_max: 130,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 5,
-    hired_this_month: 7,
-  },
-  {
-    id: 5,
-    title: 'Backend Developer',
-    description: 'Join our backend team to build scalable APIs and services. You will work with microservices, databases, queues, and distributed systems. Strong experience with backend frameworks and system design required.',
-    rate_min: 70,
-    rate_max: 110,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 8,
-    hired_this_month: 12,
-  },
-  {
-    id: 6,
-    title: 'Frontend Developer',
-    description: 'We need a Frontend Developer to build modern user interfaces. You will work with React, state management, performance optimization, and responsive design. Strong JavaScript/TypeScript skills required.',
-    rate_min: 60,
-    rate_max: 100,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 7,
-    hired_this_month: 9,
-  },
-  {
-    id: 7,
-    title: 'DevOps Engineer',
-    description: 'Looking for a DevOps Engineer to manage our infrastructure and CI/CD pipelines. You will work on monitoring, scaling, incident response, and automation. Experience with cloud platforms and containerization required.',
-    rate_min: 75,
-    rate_max: 115,
-    currency: 'USD',
-    contract_type: 'contract',
-    posted_days_ago: 10,
-    hired_this_month: 6,
-  },
+import type { Transaction, CandidateProfile, Job } from './types';
+
+export const MOCK_TRANSACTIONS: Transaction[] = [
+  { id: 'txn_1', name: 'John Doe', email: 'john.doe@example.com', amount: 250.00, status: 'Approved', date: '2024-07-29' },
+  { id: 'txn_2', name: 'Jane Smith', email: 'jane.smith@example.com', amount: 150.75, status: 'Approved', date: '2024-07-29' },
+  { id: 'txn_3', name: 'Robert Brown', email: 'robert.brown@example.com', amount: 500.00, status: 'Declined', date: '2024-07-28' },
+  { id: 'txn_4', name: 'Emily White', email: 'emily.white@example.com', amount: 75.50, status: 'Pending', date: '2024-07-28' },
+  { id: 'txn_5', name: 'Michael Green', email: 'michael.green@example.com', amount: 320.00, status: 'Approved', date: '2024-07-27' },
+  { id: 'txn_6', name: 'Jessica Blue', email: 'jessica.blue@example.com', amount: 99.99, status: 'Approved', date: '2024-07-27' },
+  { id: 'txn_7', name: 'David Black', email: 'david.black@example.com', amount: 1200.00, status: 'Pending', date: '2024-07-26' },
+  { id: 'txn_8', name: 'Sarah Pink', email: 'sarah.pink@example.com', amount: 45.00, status: 'Approved', date: '2024-07-26' },
 ];
 
-export const MOCK_CANDIDATES = [
-  {
-    id: 1,
-    name: 'John Doe',
-    role: 'Data Scientist',
-    match: 85,
-    skills: ['Python', 'Machine Learning', 'SQL'],
-  },
-  {
-    id: 2,
-    name: 'Jane Smith',
-    role: 'Full Stack Developer',
-    match: 78,
-    skills: ['React', 'Node.js', 'TypeScript'],
-  },
+// FIX: Add missing constant exports
+export const SYSTEM_PROMPT_TEMPLATE = `You are Zarina, a friendly and professional interviewer from Wind AI. Your goal is to conduct an effective and engaging technical interview with {CANDIDATE_NAME} for the {ROLE} position. The interview will be conducted in {LANGUAGE}.
+
+Follow these steps:
+1.  **Welcome and Introduction:** Start by warmly welcoming the candidate. Introduce yourself briefly and state the purpose of the interview: to assess their technical skills and experience for the {ROLE} role.
+2.  **Begin Questioning:** Transition smoothly into the technical questions. Ask a mix of conceptual and practical questions relevant to the role.
+3.  **Conversational Flow:** Maintain a conversational, not interrogational, tone. Listen to their answers carefully. You can ask follow-up questions to probe deeper into their knowledge.
+4.  **Keep it Concise:** Keep your questions and responses relatively brief to keep the interview moving.
+5.  **Conclusion:** After a few questions, thank the candidate for their time and explain the next steps in the hiring process.
+
+Do not reveal that you are an AI. Begin the interview now.`;
+
+export const MOCK_CANDIDATES: CandidateProfile[] = [
+    {
+        id: 1,
+        name: 'Alice Johnson',
+        role: 'Senior Fraud Analyst',
+        match: 92,
+        skills: ['KYC/AML', 'SQL', 'Risk Assessment', 'Data Analysis'],
+    },
+    {
+        id: 2,
+        name: 'Bob Williams',
+        role: 'Data Scientist, Anti-Fraud',
+        match: 88,
+        skills: ['Python', 'Machine Learning', 'Tableau', 'Statistical Modeling'],
+    },
+    {
+        id: 3,
+        name: 'Charlie Brown',
+        role: 'Junior Compliance Officer',
+        match: 75,
+        skills: ['Regulatory Research', 'Due Diligence', 'Policy Writing'],
+    },
 ];
 
-// MERCOR-GRADE System Prompt Template
-export const SYSTEM_PROMPT_TEMPLATE = `You are MERCOR-GRADE AI INTERVIEWER v4.
-
-Your job is to conduct a professional, structured technical interview for the specific role selected by the candidate.
-
-Your constraints and behavior:
-────────────────────────────────────────────
-1) Never give away that you are an AI model.
-2) Never repeat yourself.
-3) Never apologize unless absolutely necessary.
-4) Never generate long explanations. Keep questions sharp.
-5) Follow a strict progression: 
-   A) Background → B) Core Skills → C) Deep Dive →
-   D) Case / Problem-Solving → E) Debugging → F) Wrap-up.
-6) Adapt difficulty dynamically to candidate skill level.
-7) Use candidate's previous answers to build precise follow-up questions.
-8) Never ask generic questions twice.
-9) Maintain a confident, concise, senior-interviewer tone.
-10) Use the candidate's resume/context if provided.
-11) If candidate is toxic, stay calm, professional, neutral.
-12) If candidate avoids answering, refocus with simpler or reframed questions.
-13) If answer is short/weak, ask for specifics, metrics, examples, context.
-14) Avoid theoretical questions unless the candidate shows strong fundamentals.
-15) Every question must evaluate a skill. No filler.
-
-Interview quality requirements:
-────────────────────────────────────────────
-• Ask only ONE question at a time.
-• Every question must test a concrete competency.
-• If the candidate gives a vague answer, drill deeper.
-• If the candidate gives a strong answer, escalate difficulty.
-• If the candidate mentions a technology, ask a related follow-up.
-
-Adaptive difficulty logic:
-────────────────────────────────────────────
-• If answers are short or weak → simplify (Level 1 questions).
-• If answers are confident → raise (Level 2–3 questions).
-• If answers show senior expertise → raise (Level 4–5 questions).
-• If candidate is lost → reduce complexity, ask guiding questions.
-
-Follow-up generation rules:
-────────────────────────────────────────────
-For each candidate answer, consider:
-• Content quality
-• Structure
-• Specificity
-• Technical depth
-• Domain relevance
-• Reasoning steps
-
-Then generate a follow-up question that:
-• Clarifies something unclear
-• Expands on something important
-• Challenges assumptions
-• Tests deeper understanding
-• Introduces realistic constraints
-• Probes applied knowledge, not theory
-
-Role-awareness:
-────────────────────────────────────────────
-• If role is Data Scientist → focus on ML, metrics, pipelines, DS thinking.
-• If role is Data Analyst → focus on SQL, product metrics, funnels, dashboards, user segmentation.
-• If role is Antifraud Specialist → focus on fraud patterns, rule-based systems, KYC/AML, risk scoring, chargeback analysis.
-• If role is ML Engineer → focus on model deployment, feature pipelines, MLOps, monitoring, latency optimization.
-• If role is Backend → architecture, APIs, scaling, DB design.
-• If role is Frontend → UI logic, rendering, bundling, state mgmt.
-• If role is DevOps → CI/CD, networks, infra, containers.
-• If role is {ROLE} → adapt questions to this specific role.
-
-Candidate context:
-────────────────────────────────────────────
-Candidate name: {CANDIDATE_NAME}
-Interview language: {LANGUAGE}
-
-Overall goal:
-────────────────────────────────────────────
-Conduct a **professional, realistic, no-fluff interview**
-that evaluates:
-• Communication
-• Reasoning
-• Domain Knowledge
-• Problem Solving
-• Real-world experience
-• Decision-making
-
-Ask the first question now.`;
-
-export const EVALUATION_PROMPT_TEMPLATE = `You are an expert interviewer evaluator.
-
-Given the candidate's answer, evaluate it strictly and professionally.
-
-Return a JSON object with:
-{
-  "score": <0–100>,
-  "strengths": [array of short bullet points],
-  "weaknesses": [array of short bullet points],
-  "quality": "excellent | good | average | weak | unacceptable",
-  "skillUpdates": {
-      "communication": <0–1>,
-      "reasoning": <0–1>,
-      "domain": <0–1>
-  },
-  "notes": "one sentence explanation"
-}
-
-Evaluation criteria:
-• Specificity (examples, metrics, steps)
-• Clarity
-• Technical accuracy
-• Reasoning
-• Relevance to role
-• Effort level
-• Structure
-
-If answer is toxic, evasive, or empty → score < 20.
-If answer is strong, detailed → score > 80.
-
-Always be objective. No sympathy scoring.`;
+export const JOBS: Job[] = [
+  { id: 1, title: 'Data Scientist', contract_type: 'Full-time', description: 'We are looking for a data scientist to help us build out our fraud detection models. You will be working with a team of engineers and product managers to build and deploy models that will be used by millions of users.', rate_min: 100, rate_max: 120, currency: 'USD', hired_this_month: 5, posted_days_ago: 3 },
+  { id: 2, title: 'Software Engineer, Backend', contract_type: 'Full-time', description: 'We are looking for a backend engineer to help us build out our core infrastructure. You will be working with a team of engineers and product managers to build and deploy services that will be used by millions of users.', rate_min: 80, rate_max: 100, currency: 'USD', hired_this_month: 2, posted_days_ago: 7 },
+  { id: 3, title: 'Frontend Engineer', contract_type: 'Part-time', description: 'We are looking for a frontend engineer to help us build out our core infrastructure. You will be working with a team of engineers and product managers to build and deploy services that will be used by millions of users.', rate_min: 60, rate_max: 80, currency: 'USD', hired_this_month: 1, posted_days_ago: 14 },
+  { id: 4, title: 'Financial Forecaster', contract_type: 'Full-time', description: 'Analyzing financial data, developing forecasting models, and providing insights to support strategic decision-making.', rate_min: 105, rate_max: 140, currency: 'USD', hired_this_month: 8, posted_days_ago: 2 },
+  { id: 5, title: 'Anti-Fraud Specialist', contract_type: 'Contract', description: 'Monitor transactions, investigate suspicious activities, and implement fraud prevention strategies.', rate_min: 70, rate_max: 95, currency: 'USD', hired_this_month: 12, posted_days_ago: 5 },
+  { id: 6, title: 'Compliance Officer', contract_type: 'Full-time', description: 'Ensure the company adheres to legal standards and in-house policies. Responsible for enforcing regulations in all aspects and levels of business.', rate_min: 90, rate_max: 110, currency: 'USD', hired_this_month: 3, posted_days_ago: 20 },
+  { id: 7, title: 'AI Ethics Researcher', contract_type: 'Part-time', description: 'Investigate the ethical implications of AI systems, develop guidelines, and contribute to responsible AI development.', rate_min: 50, rate_max: 75, currency: 'USD', hired_this_month: 0, posted_days_ago: 30 },
+  { id: 8, title: 'Risk Analyst', contract_type: 'Contract', description: 'Identify and analyze potential risks to the organization\'s assets, earning capacity, or success.', rate_min: 65, rate_max: 85, currency: 'USD', hired_this_month: 6, posted_days_ago: 10 },
+  { id: 9, title: 'Cybersecurity Analyst', contract_type: 'Full-time', description: 'Protect company hardware, software, and networks from cybercriminals. Monitor networks for security breaches.', rate_min: 95, rate_max: 130, currency: 'USD', hired_this_month: 4, posted_days_ago: 12 },
+  { id: 10, title: 'SQL Specialist / DBA', contract_type: 'Contract', description: 'Deep expertise in SQL, database optimization, schema design, and performance tuning. PostgreSQL/MySQL focus.', rate_min: 90, rate_max: 150, currency: 'USD', hired_this_month: 2, posted_days_ago: 1 },
+  { id: 11, title: 'Analytics Engineer (SQL Focused)', contract_type: 'Full-time', description: 'Bridge the gap between data engineering and data analysis. Strong SQL, DBT, and data modeling skills required.', rate_min: 110, rate_max: 160, currency: 'USD', hired_this_month: 6, posted_days_ago: 3 },
+];

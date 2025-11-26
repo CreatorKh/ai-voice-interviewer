@@ -1,6 +1,8 @@
+
+
+
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { TEXT_MODEL_ID } from '../config/models';
+import { GoogleGenAI, Type } from '@google/genai';
 import { MOCK_CANDIDATES } from '../constants';
 import { CandidateProfile, AppRoute, InterviewResult, Contract } from '../types';
 import Button from './Button';
@@ -63,7 +65,7 @@ const CandidateCard: React.FC<{ candidate: DisplayCandidate; onViewSummary: () =
           onClick={onViewSummary}
           disabled={isMock}
         >
-          {isMock ? "Summary (Mock)" : "View Full Details"}
+          {isMock ? "Summary (Mock)" : "View Summary"}
         </Button>
         <Button 
           className="w-full"
@@ -123,9 +125,7 @@ const HirerDashboardPage: React.FC<HirerDashboardPageProps> = ({ results, contra
     setIsSearching(true);
     setSearchError(null);
     try {
-        const genAI = new GoogleGenerativeAI(process.env.API_KEY as string);
-        const model = genAI.getGenerativeModel({ model: TEXT_MODEL_ID });
-        
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
         const candidatesForAI = combinedCandidates.map(c => ({
             id: c.id,
             role: c.role,
@@ -133,25 +133,30 @@ const HirerDashboardPage: React.FC<HirerDashboardPageProps> = ({ results, contra
             summary: c.evaluation?.summary || c.application.profileSummary || "No summary available."
         }));
 
-        const prompt = `You are an AI hiring assistant. Always respond with valid JSON only, no additional text.
-
-Your task is to filter a list of candidates based on a user's query.
+        const prompt = `You are an AI hiring assistant. Your task is to filter a list of candidates based on a user's query.
 The user's query is: "${searchQuery}"
 Here is the list of candidates as a JSON array:
 ${JSON.stringify(candidatesForAI)}
 Analyze the query and the candidate data (especially their role, skills, and interview summary).
 Return a JSON object containing a single key "matchingIds", which is an array of the candidate IDs that best match the query, sorted from most to least relevant. Only include IDs from the provided list.`;
         
-        const result = await model.generateContent(prompt);
-        const response = await result.response;
-        const jsonText = response.text().trim() || '{"matchingIds": []}';
-        
-        // Try to extract JSON from response (in case there's extra text)
-        const jsonMatch = jsonText.match(/\{[\s\S]*\}/);
-        const finalJson = jsonMatch ? jsonMatch[0] : jsonText;
-        
-        const parsedResult = JSON.parse(finalJson);
-        setFilteredIds(parsedResult.matchingIds || []);
+        const response = await ai.models.generateContent({
+            model: "gemini-2.5-flash",
+            contents: prompt,
+            config: {
+                responseMimeType: "application/json",
+                responseSchema: {
+                    type: Type.OBJECT,
+                    properties: {
+                        matchingIds: { type: Type.ARRAY, items: { type: Type.NUMBER } }
+                    },
+                    required: ["matchingIds"]
+                }
+            }
+        });
+
+        const result = JSON.parse(response.text.trim());
+        setFilteredIds(result.matchingIds || []);
 
     } catch (e) {
         console.error("Smart search failed:", e);

@@ -1,8 +1,10 @@
+
 import React, { createContext, useState, useContext, ReactNode } from 'react';
 import { User, OnboardingData, ProfileData } from '../types';
 
 interface AuthContextType {
   user: User | null;
+  isAdmin: boolean;
   profileData: ProfileData | null;
   login: (data: OnboardingData) => void;
   loginAsMockUser: () => void;
@@ -20,15 +22,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const ADMIN_EMAIL = "khurshid.creator@gmail.com";
+
 const MOCK_USER: User = {
   name: "Khursid Khusanboev",
-  email: "khurshid.creator@gmail.com",
-  picture: `https://i.pravatar.cc/150?u=khurshid.creator@gmail.com`,
+  email: ADMIN_EMAIL,
+  picture: `https://i.pravatar.cc/150?u=${ADMIN_EMAIL}`,
 };
 
 const MOCK_PROFILE_DATA: ProfileData = {
     fullName: 'Khursid Khusanboev',
-    email: 'khurshid.creator@gmail.com',
+    email: ADMIN_EMAIL,
     phone: '+1 (332) 23',
     city: 'Ts',
     country: 'Uzbekistan',
@@ -68,6 +72,7 @@ const MOCK_PROFILE_DATA: ProfileData = {
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [profileData, setProfileData] = useState<ProfileData | null>(null);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState(false);
   const [isLoginChoiceOpen, setIsLoginChoiceOpen] = useState(false);
@@ -97,18 +102,21 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     setUser(newUser);
     setProfileData(newProfileData);
+    setIsAdmin(newUser.email === ADMIN_EMAIL);
     closeOnboarding();
   };
   
   const loginAsMockUser = () => {
     setUser(MOCK_USER);
     setProfileData(MOCK_PROFILE_DATA);
+    setIsAdmin(MOCK_USER.email === ADMIN_EMAIL);
     closeLoginChoice();
   };
 
   const logout = () => {
     setUser(null);
     setProfileData(null);
+    setIsAdmin(false);
   };
   
   const updateProfileData = (data: Partial<ProfileData>) => {
@@ -124,6 +132,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   return (
     <AuthContext.Provider value={{ 
         user, 
+        isAdmin,
         profileData,
         login, 
         loginAsMockUser,

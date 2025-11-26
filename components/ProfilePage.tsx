@@ -5,14 +5,11 @@ import ProfileAvailabilityTab from './profile/ProfileAvailabilityTab';
 import ProfileWorkPreferencesTab from './profile/ProfileWorkPreferencesTab';
 import ProfileCommunicationsTab from './profile/ProfileCommunicationsTab';
 import ProfileAccountTab from './profile/ProfileAccountTab';
-import AdminPanel from './AdminPanel';
-import Button from './Button';
 
 export type ProfileTab = 'Resume' | 'Availability' | 'Work Preferences' | 'Communications' | 'Account';
 
 const ProfilePage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<ProfileTab>('Resume');
-  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -32,27 +29,13 @@ const ProfilePage: React.FC = () => {
   };
 
   return (
-    <>
-      <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-3xl font-bold">Profile</h1>
-          <Button
-            variant="outline"
-            onClick={() => setIsAdminPanelOpen(true)}
-            className="text-sm"
-          >
-            ⚙️ LLM Settings
-          </Button>
-        </div>
-        <ProfileTabNav activeTab={activeTab} setActiveTab={setActiveTab} />
-        <div>
-          {renderTabContent()}
-        </div>
+    <div className="space-y-6">
+      <h1 className="text-3xl font-bold">Profile</h1>
+      <ProfileTabNav activeTab={activeTab} setActiveTab={setActiveTab} />
+      <div>
+        {renderTabContent()}
       </div>
-      {isAdminPanelOpen && (
-        <AdminPanel onClose={() => setIsAdminPanelOpen(false)} />
-      )}
-    </>
+    </div>
   );
 };
 

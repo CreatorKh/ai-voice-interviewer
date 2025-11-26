@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import { AuthProvider } from './components/AuthContext';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -9,8 +10,10 @@ if (!rootElement) {
 }
 
 const root = ReactDOM.createRoot(rootElement);
-// StrictMode temporarily disabled to avoid double API calls in dev mode
-// Re-enable when moving to production if needed
 root.render(
-  <App />
+  <React.StrictMode>
+    <AuthProvider>
+      <App />
+    </AuthProvider>
+  </React.StrictMode>
 );

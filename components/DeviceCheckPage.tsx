@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { Job, AppRoute, ApplicationData } from '../types';
 import Button from './Button';
@@ -21,7 +22,6 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
   const streamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  // FIX: Initialize useRef with null for consistency and to avoid potential issues with falsy values like 0.
   const animationFrameRef = useRef<number | null>(null);
 
   const stopStreams = () => {
@@ -34,7 +34,6 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
       audioContextRef.current.close();
       audioContextRef.current = null;
     }
-    // FIX: Changed the check to handle the case where animationFrameRef.current could be 0, which is a valid ID.
     if (animationFrameRef.current !== null) cancelAnimationFrame(animationFrameRef.current);
     setMicLevel(0);
   };
@@ -43,13 +42,9 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
     stopStreams();
     setError(null);
     try {
-      // Request permissions and get initial stream
+      // Request permission first - removed noise constraints
       const initialStream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          noiseSuppression: true,
-          echoCancellation: true,
-          autoGainControl: true,
-        },
+        audio: { noiseSuppression: false, echoCancellation: false, autoGainControl: false },
         video: true
       });
       
@@ -59,23 +54,27 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
       setCams(videoDevices);
       setMics(audioDevices);
 
-      const currentCamId = camId || videoDevices[0]?.deviceId;
-      const currentMicId = micId || audioDevices[0]?.deviceId;
-      if (currentCamId) setCamId(currentCamId);
-      if (currentMicId) setMicId(currentMicId);
+      // Use saved preferences or defaults
+      const savedCam = localStorage.getItem('preferredCamId');
+      const savedMic = localStorage.getItem('preferredMicId');
+
+      const currentCamId = camId || (videoDevices.find(d => d.deviceId === savedCam)?.deviceId || videoDevices[0]?.deviceId);
+      const currentMicId = micId || (audioDevices.find(d => d.deviceId === savedMic)?.deviceId || audioDevices[0]?.deviceId);
       
-      // Stop initial permissive stream before creating specific ones
+      setCamId(currentCamId);
+      setMicId(currentMicId);
+      
+      // Stop initial stream to release devices before restarting with specific IDs
       initialStream.getTracks().forEach(track => track.stop());
 
-      // Start specific streams
       if(currentCamId || currentMicId) {
           const newStream = await navigator.mediaDevices.getUserMedia({ 
               video: currentCamId ? { deviceId: { exact: currentCamId } } : false,
-              audio: currentMicId ? {
-                deviceId: { exact: currentMicId },
-                noiseSuppression: true,
-                echoCancellation: true,
-                autoGainControl: true,
+              audio: currentMicId ? { 
+                  deviceId: { exact: currentMicId }, 
+                  noiseSuppression: false, 
+                  echoCancellation: false,
+                  autoGainControl: false
               } : false,
           });
           streamRef.current = newStream;
@@ -94,31 +93,9 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
     const source = audioContext.createMediaStreamSource(stream);
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 512;
-
-    // Create audio processing nodes for a cleaner signal in the visualizer.
-    const highPassFilter = audioContext.createBiquadFilter();
-    highPassFilter.type = 'highpass';
-    highPassFilter.frequency.value = 100;
-
-    const lowPassFilter = audioContext.createBiquadFilter();
-    lowPassFilter.type = 'lowpass';
-    lowPassFilter.frequency.value = 7000;
-    
-    const compressor = audioContext.createDynamicsCompressor();
-    compressor.threshold.value = -50;
-    compressor.knee.value = 40;
-    compressor.ratio.value = 12;
-    compressor.attack.value = 0;
-    compressor.release.value = 0.25;
-
     const gainNode = audioContext.createGain();
     gainNode.gain.value = 1.5;
-
-    // Connect the audio graph: source -> filters -> compressor -> gain -> analyser
-    source.connect(highPassFilter);
-    highPassFilter.connect(lowPassFilter);
-    lowPassFilter.connect(compressor);
-    compressor.connect(gainNode);
+    source.connect(gainNode);
     gainNode.connect(analyser);
 
     analyserRef.current = analyser;
@@ -135,50 +112,66 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
   useEffect(() => {
     setupDevices();
     return () => stopStreams();
-  }, [camId, micId]); // Re-run when user changes device selection
+  }, [camId, micId]); 
+
+  const handleStart = () => {
+      // Save preferences explicity
+      if (camId) localStorage.setItem('preferredCamId', camId);
+      if (micId) localStorage.setItem('preferredMicId', micId);
+      
+      setRoute({name: "interviewLive", jobId: job.id, applicationData});
+  };
 
   return (
-    <div className="grid lg:grid-cols-[1fr,360px] gap-8">
+    <div className="grid lg:grid-cols-[1fr,360px] gap-8 max-w-6xl mx-auto">
       <div>
-        <h1 className="text-2xl font-bold">Device Check</h1>
-        <p className="text-sm text-neutral-400 mt-1">Let's make sure your camera and microphone are ready.</p>
+        <h1 className="text-2xl font-bold text-white">System Check</h1>
+        <p className="text-sm text-neutral-400 mt-1">Ensure your audio and video are clear before beginning.</p>
 
-        <div className="mt-4 aspect-video rounded-2xl border border-white/10 bg-black overflow-hidden grid place-items-center">
-          <video ref={videoRef} className="w-full h-full object-cover" muted autoPlay playsInline style={{ transform: 'scaleX(-1)' }} />
-          {error && <div className="absolute text-center p-4 text-red-400 text-sm bg-black/50 rounded-lg">{error}</div>}
+        <div className="mt-6 relative aspect-video rounded-2xl border border-white/10 bg-black overflow-hidden grid place-items-center shadow-2xl shadow-cyan-900/10">
+          <video ref={videoRef} className="w-full h-full object-cover scale-x-[-1]" muted autoPlay playsInline />
+          {error && <div className="absolute text-center p-4 text-red-400 text-sm bg-black/80 backdrop-blur rounded-lg border border-red-500/30">{error}</div>}
+          <div className="absolute bottom-4 left-4 right-4 flex gap-2">
+             <div className="flex-1 bg-black/60 backdrop-blur rounded-lg p-1.5 border border-white/5">
+                <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+                    <div className="h-full bg-cyan-400 transition-all duration-75 shadow-[0_0_10px_rgba(6,182,212,0.5)]" style={{width: `${Math.min(100, Math.round(micLevel * 300))}%`}}/>
+                </div>
+             </div>
+          </div>
         </div>
 
-        <div className="mt-3 grid sm:grid-cols-2 gap-3">
-          <select value={camId} onChange={e => setCamId(e.target.value)} className="rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm">
-            {cams.length === 0 ? <option>No cameras found</option> : cams.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${cams.indexOf(d) + 1}`}</option>)}
-          </select>
-          <select value={micId} onChange={e => setMicId(e.target.value)} className="rounded-lg bg-white/[0.05] border border-white/10 px-3 py-2 text-sm">
-            {mics.length === 0 ? <option>No microphones found</option> : mics.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${mics.indexOf(d) + 1}`}</option>)}
-          </select>
+        <div className="mt-4 grid sm:grid-cols-2 gap-4">
+          <div>
+             <label className="text-xs font-medium text-neutral-400 mb-1.5 block">Camera Source</label>
+             <select value={camId} onChange={e => setCamId(e.target.value)} className="w-full rounded-xl bg-white/[0.05] border border-white/10 px-4 py-2.5 text-sm focus:border-cyan-500 outline-none transition-colors text-white">
+                {cams.length === 0 ? <option>No cameras found</option> : cams.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Camera ${cams.indexOf(d) + 1}`}</option>)}
+             </select>
+          </div>
+          <div>
+             <label className="text-xs font-medium text-neutral-400 mb-1.5 block">Microphone Source</label>
+             <select value={micId} onChange={e => setMicId(e.target.value)} className="w-full rounded-xl bg-white/[0.05] border border-white/10 px-4 py-2.5 text-sm focus:border-cyan-500 outline-none transition-colors text-white">
+                {mics.length === 0 ? <option>No microphones found</option> : mics.map(d => <option key={d.deviceId} value={d.deviceId}>{d.label || `Microphone ${mics.indexOf(d) + 1}`}</option>)}
+             </select>
+          </div>
         </div>
-        <div className="mt-2 text-sm font-semibold opacity-80 mb-2">Microphone Level</div>
-        <div className="h-2 rounded-full bg-white/10 overflow-hidden"><div className="h-full bg-cyan-400 transition-all" style={{width: `${Math.round(micLevel * 100)}%`}}/></div>
       </div>
 
-      <aside className="space-y-4">
+      <aside className="space-y-6">
         <div className="rounded-2xl border border-white/10 bg-white/[0.02] p-6">
-          <h3 className="text-sm font-semibold opacity-80 mb-3">Application Progress</h3>
+          <h3 className="text-sm font-semibold opacity-80 mb-4 text-white">Progress</h3>
           <Stepper current={2}/>
-           <ul className="mt-4 text-sm space-y-2 text-neutral-300">
-            <li className="opacity-60">1. Basic Information</li>
-            <li className="font-semibold text-white">2. Device Check</li>
-            <li className="opacity-60">3. AI Interview</li>
+           <ul className="mt-6 text-sm space-y-3 text-neutral-400">
+            <li className="flex items-center gap-3 opacity-50"><span className="w-6 h-6 rounded-full bg-white/10 grid place-items-center text-xs">✓</span> Basic Info</li>
+            <li className="flex items-center gap-3 text-white font-medium"><span className="w-6 h-6 rounded-full bg-cyan-500 text-black grid place-items-center text-xs shadow-lg shadow-cyan-500/20">2</span> Device Check</li>
+            <li className="flex items-center gap-3 opacity-50"><span className="w-6 h-6 rounded-full border border-white/10 grid place-items-center text-xs">3</span> Interview</li>
           </ul>
         </div>
-        <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-6">
-          <h3 className="text-sm font-semibold opacity-80 mb-2">Before you start...</h3>
-          <ul className="text-sm text-neutral-300 list-disc pl-4 space-y-2">
-            <li>Find a quiet, well-lit space.</li>
-            <li>The interview will take about 20 minutes.</li>
-            <li>Be ready to discuss your experience in detail.</li>
-          </ul>
-          <Button disabled={!!error || !camId || !micId} className="w-full mt-4" onClick={() => setRoute({name: "interviewLive", jobId: job.id, applicationData})}>
-            {error ? 'Permissions Needed' : 'Start Interview'}
+        
+        <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.05] to-transparent p-6">
+          <h3 className="text-sm font-semibold mb-2 text-white">Ready to join?</h3>
+          <p className="text-xs text-neutral-400 mb-6">The interview is automated and timed. Please ensure you are in a quiet environment.</p>
+          <Button disabled={!!error || !camId || !micId} className="w-full py-3 bg-cyan-500 hover:bg-cyan-400 text-black font-bold shadow-lg shadow-cyan-900/20 transition-all hover:shadow-cyan-500/20" onClick={handleStart}>
+            {error ? 'Check Permissions' : 'Start Interview'}
           </Button>
         </div>
       </aside>

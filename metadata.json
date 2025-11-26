@@ -1,8 +1,8 @@
 {
-  "name": "Copy of Copy of Copy of Copy of Copy of Copy of Copy of AI Voice Interviewer",
-  "description": "A conversational AI application that conducts real-time voice interviews to assess candidate skills, adapting its questions based on the conversation.",
+  "name": "Copy of Copy of Copy of AI Voice Interviewer",
+  "description": "An AI-powered platform for conducting voice interviews.",
   "requestFramePermissions": [
-    "microphone",
-    "camera"
+    "camera",
+    "microphone"
   ]
 }

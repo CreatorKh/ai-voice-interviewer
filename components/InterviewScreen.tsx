@@ -1,1723 +1,818 @@
+
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { TranscriptEntry, Speaker, Job, ApplicationData, AntiCheatReport } from '../types';
+import { finalizeInterview, InterviewState } from '../services/interviewPipeline/pipeline';
+import { getQuestionForRoleAndStage } from '../services/interviewPipeline/questionBank';
+import LogOutIcon from './icons/StopIcon';
 
-import { GoogleGenAI, Modality, Blob as GenAIBlob, LiveServerMessage } from '@google/genai';
+// --- Audio Utils (Adapted from Gemini Live API Docs) ---
 
-import { SYSTEM_PROMPT_TEMPLATE } from '../constants';
+function downsampleBuffer(buffer: Float32Array, inputSampleRate: number, targetSampleRate: number): Float32Array {
+    if (inputSampleRate === targetSampleRate) return buffer;
+    if (inputSampleRate < targetSampleRate) return buffer; 
 
-import { TranscriptEntry, Speaker, Job, ApplicationData } from '../types';
+    const sampleRateRatio = inputSampleRate / targetSampleRate;
+    const newLength = Math.round(buffer.length / sampleRateRatio);
+    const result = new Float32Array(newLength);
+    
+    let offsetResult = 0;
+    let offsetBuffer = 0;
+    
+    while (offsetResult < result.length) {
+        const nextOffsetBuffer = Math.round((offsetResult + 1) * sampleRateRatio);
+        
+        let accum = 0, count = 0;
+        for (let i = offsetBuffer; i < nextOffsetBuffer && i < buffer.length; i++) {
+            accum += buffer[i];
+            count++;
+        }
+        
+        result[offsetResult] = count > 0 ? accum / count : 0;
+        offsetResult++;
+        offsetBuffer = nextOffsetBuffer;
+    }
+    return result;
+}
 
-import { InterviewPipeline } from '../services/interviewPipeline/pipeline';
+function createBlob(data: Float32Array): { data: string; mimeType: string } {
+    const l = data.length;
+    const int16 = new Int16Array(l);
+    for (let i = 0; i < l; i++) {
+        // Clamp to Int16 range
+        const s = Math.max(-1, Math.min(1, data[i]));
+        int16[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
+    }
+    
+    let binary = '';
+    const bytes = new Uint8Array(int16.buffer);
+    const len = bytes.byteLength;
+    for (let i = 0; i < len; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+    const base64 = btoa(binary);
 
-import { QuestionPlan } from '../services/interviewPipeline/types';
+    return {
+        data: base64,
+        mimeType: 'audio/pcm;rate=16000',
+    };
+}
 
-import { LIVE_MODEL_ID } from '../config/models';
-
-import {
-
-  RnnoiseWorkletNode,
-
-  loadRnnoise,
-
-} from '@sapphi-red/web-noise-suppressor';
-
-// Audio helper functions
-
-const decode = (base64: string): Uint8Array => {
-
+function decode(base64: string): Uint8Array {
   const binaryString = atob(base64);
-
   const len = binaryString.length;
-
   const bytes = new Uint8Array(len);
-
   for (let i = 0; i < len; i++) {
-
     bytes[i] = binaryString.charCodeAt(i);
-
   }
-
   return bytes;
-
-};
-
-const encode = (bytes: Uint8Array): string => {
-
-  let binary = '';
-
-  const len = bytes.byteLength;
-
-  for (let i = 0; i < len; i++) {
-
-    binary += String.fromCharCode(bytes[i]);
-
-  }
-
-  return btoa(binary);
-
-};
+}
 
 async function decodeAudioData(
-
   data: Uint8Array,
-
   ctx: AudioContext,
-
   sampleRate: number,
-
   numChannels: number,
-
 ): Promise<AudioBuffer> {
-
   const dataInt16 = new Int16Array(data.buffer);
-
   const frameCount = dataInt16.length / numChannels;
-
   const buffer = ctx.createBuffer(numChannels, frameCount, sampleRate);
 
   for (let channel = 0; channel < numChannels; channel++) {
-
     const channelData = buffer.getChannelData(channel);
-
     for (let i = 0; i < frameCount; i++) {
-
       channelData[i] = dataInt16[i * numChannels + channel] / 32768.0;
-
     }
-
   }
-
   return buffer;
-
 }
 
-const blobToBase64 = (blob: Blob): Promise<string> => {
+// --- Visualizer Component ---
 
-  return new Promise((resolve) => {
+const AudioVisualizer: React.FC<{ 
+    analyser: AnalyserNode | null; 
+    mode: 'mic' | 'ai' | 'idle'; 
+}> = ({ analyser, mode }) => {
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
-    const reader = new FileReader();
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
-    reader.onloadend = () => {
+        let animationId: number;
+        const bufferLength = analyser ? analyser.frequencyBinCount : 0;
+        const dataArray = new Uint8Array(bufferLength);
 
-      resolve((reader.result as string).split(',')[1]);
+        const draw = () => {
+            const width = canvas.width;
+            const height = canvas.height;
+            ctx.clearRect(0, 0, width, height);
 
-    };
+            if (mode === 'idle' || !analyser) {
+                // Breathing circle for idle
+                const time = Date.now() / 1000;
+                const radius = 30 + Math.sin(time * 2) * 2;
+                ctx.beginPath();
+                ctx.arc(width / 2, height / 2, radius, 0, 2 * Math.PI);
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            } else {
+                analyser.getByteFrequencyData(dataArray);
+                
+                // Circular Equalizer
+                const centerX = width / 2;
+                const centerY = height / 2;
+                const radius = 40;
+                const bars = 40; 
+                const step = Math.floor(bufferLength / bars);
+                
+                let r, g, b;
+                if (mode === 'mic') { r = 74; g = 222; b = 128; } // Green-400
+                else { r = 34; g = 211; b = 238; } // Cyan-400
 
-    reader.readAsDataURL(blob);
+                for (let i = 0; i < bars; i++) {
+                    const value = dataArray[i * step] || 0; 
+                    const barHeight = Math.max(4, (value / 255) * 80);
 
-  });
+                    const rad = (i / bars) * 2 * Math.PI;
+                    const x1 = centerX + Math.cos(rad) * radius;
+                    const y1 = centerY + Math.sin(rad) * radius;
+                    const x2 = centerX + Math.cos(rad) * (radius + barHeight);
+                    const y2 = centerY + Math.sin(rad) * (radius + barHeight);
 
+                    ctx.beginPath();
+                    ctx.moveTo(x1, y1);
+                    ctx.lineTo(x2, y2);
+                    ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${0.3 + (value/255)})`;
+                    ctx.lineWidth = 4;
+                    ctx.lineCap = 'round';
+                    ctx.stroke();
+                }
+            }
+            
+            animationId = requestAnimationFrame(draw);
+        };
+
+        draw();
+        return () => cancelAnimationFrame(animationId);
+    }, [analyser, mode]);
+
+    return <canvas ref={canvasRef} width={300} height={300} className="w-64 h-64 md:w-80 md:h-80" />;
 };
 
+// --- Main Component ---
+
 interface InterviewScreenProps {
-
   job: Job;
-
-  onEnd: (transcript: TranscriptEntry[], recordingUrl: string) => void;
-
+    onEnd: (transcript: TranscriptEntry[], recordingUrl: string, evaluation: any, antiCheatReport: AntiCheatReport) => void;
   applicationData: ApplicationData;
-
 }
 
-const FRAME_RATE = 3; // Reduced from 10 to save bandwidth and reduce API load
-
-const JPEG_QUALITY = 0.7;
-
-const MAX_RETRIES = 10;
-
-// ВАЖНО: файлы должны лежать в public/rnnoise/
-
-const RNNOISE_WORKLET_URL = '/rnnoise/rnnoiseWorklet.js';
-
-const RNNOISE_WASM_URL = '/rnnoise/rnnoise.wasm';
-
-const RNNOISE_SIMD_WASM_URL = '/rnnoise/rnnoise_simd.wasm';
-
-type Status = 'CONNECTING' | 'LISTENING' | 'SPEAKING' | 'THINKING' | 'ENDED' | 'ERROR' | 'RECONNECTING';
-
-const StopIcon = () => (
-
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6">
-
-    <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 7.5A2.25 2.25 0 0 1 7.5 5.25h9a2.25 2.25 0 0 1 2.25 2.25v9a2.25 2.25 0 0 1-2.25 2.25h-9a2.25 2.25 0 0 1-2.25-2.25v-9Z" />
-
-  </svg>
-
-);
-
-const SpeakerIcon = () => (
-
-  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-6 h-6 text-white">
-
-    <path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 0 1 0 12.728M16.463 8.288a5.25 5.25 0 0 1 0 7.424M6.75 8.25l4.72-4.72a.75.75 0 0 1 1.28.53v15.88a.75.75 0 0 1-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 0 1 2.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75Z" />
-
-  </svg>
-
-);
-
-const TypingIndicator: React.FC = () => (
-
-  <div className="flex items-center space-x-1 ml-2 self-end mb-0.5" aria-label="Typing">
-
-    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '-0.3s' }} />
-
-    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" style={{ animationDelay: '-0.15s' }} />
-
-    <div className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
-
-        </div>
-
-);
-
 const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicationData }) => {
-
-  const [status, setStatus] = useState<Status>('CONNECTING');
-
-  const [transcript, setTranscript] = useState<TranscriptEntry[]>([]);
-
+    // -- State --
+    const [status, setStatus] = useState<'CONNECTING' | 'CONNECTED' | 'DISCONNECTED' | 'RECONNECTING'>('CONNECTING');
   const [timer, setTimer] = useState(0);
+    const [isMicActive, setIsMicActive] = useState(false);
+    const [isAiSpeaking, setIsAiSpeaking] = useState(false);
+    
+    // Live Transcription State
+    const [currentInputTrans, setCurrentInputTrans] = useState("");
+    const [currentOutputTrans, setCurrentOutputTrans] = useState("");
+    const [transcriptHistory, setTranscriptHistory] = useState<TranscriptEntry[]>([]);
 
-  const statusRef = useRef(status);
-
-  useEffect(() => {
-
-    statusRef.current = status;
-
-  }, [status]);
-
-  const sessionRef = useRef<any | null>(null);
-
-  const isConnectingRef = useRef(false);
-
-  const inputAudioContextRef = useRef<AudioContext | null>(null);
-
-  const outputAudioContextRef = useRef<AudioContext | null>(null);
-
-  const streamRef = useRef<MediaStream | null>(null);
-
-  const processorRef = useRef<AudioWorkletNode | null>(null);
-  const workletLoadedRef = useRef(false);
-
-  const inputTranscriptionBufferRef = useRef('');
-
-  const outputTranscriptionBufferRef = useRef('');
-
-  const nextAudioStartTimeRef = useRef(0);
-
-  const audioSourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
-
-  const processedAudioChunksRef = useRef<Set<string>>(new Set());
-
-  const noiseGateAnalyserRef = useRef<AnalyserNode | null>(null);
-
-  const rnnoiseWasmBinaryRef = useRef<ArrayBuffer | null>(null);
-
-  const rnnoiseEnabledRef = useRef(false);
-
-  const videoRef = useRef<HTMLVideoElement>(null);
-
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-
-  const frameIntervalRef = useRef<number | null>(null);
-
-  const retryCountRef = useRef(0);
-
+    // -- Refs --
+    const isMountedRef = useRef(true); // Track component mount state
+    const inputAudioCtxRef = useRef<AudioContext | null>(null);
+    const outputAudioCtxRef = useRef<AudioContext | null>(null);
+    const micStreamRef = useRef<MediaStream | null>(null);
+    const micAnalyserRef = useRef<AnalyserNode | null>(null);
+    const aiAnalyserRef = useRef<AnalyserNode | null>(null);
+    const sessionPromiseRef = useRef<Promise<any> | null>(null);
+    const outputNodeRef = useRef<GainNode | null>(null);
+    const nextStartTimeRef = useRef<number>(0);
+    const sourcesRef = useRef<Set<AudioBufferSourceNode>>(new Set());
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-
   const recordedChunksRef = useRef<Blob[]>([]);
+    const recordingMimeTypeRef = useRef<string>('video/webm');
+    const videoRef = useRef<HTMLVideoElement>(null);
+    
+    // Reconnect Refs
+    const retryCountRef = useRef(0);
+    const isReconnectingRef = useRef(false);
+    const isAudioSetupRef = useRef(false);
+    const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const onEndCalledRef = useRef(false);
+    // Track mounted state
+    useEffect(() => {
+        isMountedRef.current = true;
+        return () => { isMountedRef.current = false; };
+    }, []);
 
-  // Pipeline refs
+    // Timer
+    useEffect(() => {
+        const i = setInterval(() => setTimer(t => t + 1), 1000);
+        return () => clearInterval(i);
+    }, []);
 
-  const pipelineRef = useRef<InterviewPipeline | null>(null);
-
-  const currentQuestionPlanRef = useRef<QuestionPlan | null>(null);
-
-  const questionStartTimeRef = useRef<number>(0);
-
-  const answerStartTimeRef = useRef<number>(0);
-
-  const currentQuestionRef = useRef<string>('');
-
-  const finalTranscript = useRef(transcript);
-
-  // Prevent double processing of turns
-  const turnEvalInProgressRef = useRef(false);
-  const nextQuestionInProgressRef = useRef(false);
-
-  useEffect(() => {
-
-    finalTranscript.current = transcript;
-
-  }, [transcript]);
-
-  const stopInterviewFlow = useCallback((isComplete: boolean) => {
-
-    if (isComplete) {
-
-      if (frameIntervalRef.current) {
-
-        clearInterval(frameIntervalRef.current);
-
-        frameIntervalRef.current = null;
-
-      }
-
-      if (sessionRef.current) {
-
-        try {
-
-          if (sessionRef.current && typeof sessionRef.current.close === 'function') {
-
-            sessionRef.current.close();
-
-          }
-
-        } catch (error) {
-
-          console.warn('Error closing session:', error);
-
+    // Media Cleanup Helper
+    const stopMedia = useCallback(() => {
+        console.log("Stopping media...");
+        // 0. Stop Video Interval
+        if (videoIntervalRef.current) {
+             clearInterval(videoIntervalRef.current);
+             videoIntervalRef.current = null;
         }
 
-        sessionRef.current = null;
+        // 1. Stop Mic Tracks
+        if (micStreamRef.current) {
+            micStreamRef.current.getTracks().forEach(t => {
+                t.stop();
+                console.log(`Stopped track: ${t.label}`);
+            });
+            micStreamRef.current = null;
+        }
+        
+        // 2. Close Audio Contexts
+        // Use refs directly to avoid closure staleness, but check if they are the current ones? 
+        // Simply closing what is in the ref is usually correct for cleanup.
+        if (inputAudioCtxRef.current && inputAudioCtxRef.current.state !== 'closed') {
+            try { inputAudioCtxRef.current.close(); } catch(e) {}
+        }
+        if (outputAudioCtxRef.current && outputAudioCtxRef.current.state !== 'closed') {
+            try { outputAudioCtxRef.current.close(); } catch(e) {}
+        }
+        
+        // 3. Stop Media Recorder
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+             try { mediaRecorderRef.current.stop(); } catch(e) {}
+        }
+        
+        // 4. Clear Video
+        if (videoRef.current) {
+            videoRef.current.srcObject = null;
+        }
+        
+        console.log("All media stopped");
+    }, []);
 
-      }
+    // -- Cleanup --
+    useEffect(() => {
+        return () => {
+            stopMedia();
+        };
+    }, [stopMedia]);
 
-      isConnectingRef.current = false;
+    // Define startRecording helper
+    const startRecording = useCallback((streamToRecord: MediaStream) => {
+        let mimeType = 'video/webm';
+        if (typeof MediaRecorder !== 'undefined') {
+            if (!MediaRecorder.isTypeSupported('video/webm')) {
+                if (MediaRecorder.isTypeSupported('video/mp4')) {
+                    mimeType = 'video/mp4';
+                } else {
+                    mimeType = ''; 
+                }
+            }
+        }
+        recordingMimeTypeRef.current = mimeType;
 
-      if (streamRef.current) {
+        if (typeof MediaRecorder !== 'undefined') {
+            try {
+                const recorder = mimeType ? new MediaRecorder(streamToRecord, { mimeType }) : new MediaRecorder(streamToRecord);
+                recorder.ondataavailable = e => { 
+                    if (e.data.size > 0) recordedChunksRef.current.push(e.data); 
+                };
+                recorder.start(1000);
+                mediaRecorderRef.current = recorder;
+                console.log("Recording started with mimeType:", mimeType);
+            } catch (e) {
+                console.error("Failed to start recorder", e);
+            }
+        }
+    }, []);
 
-        streamRef.current.getTracks().forEach((track) => track.stop());
-
-        streamRef.current = null;
-
-      }
-
-      if (processorRef.current) {
-
-        processorRef.current.disconnect();
-
-        processorRef.current = null;
-
-      }
-
-      if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
-
-        inputAudioContextRef.current.close();
-
-      }
-
-      if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
-
-        audioSourcesRef.current.forEach((source) => source.stop());
-
-        audioSourcesRef.current.clear();
-
-        outputAudioContextRef.current.close();
-
-      }
-
-      processedAudioChunksRef.current.clear();
-
-      setStatus('ENDED');
-
-    } else {
-
-      if (frameIntervalRef.current) {
-
-        clearInterval(frameIntervalRef.current);
-
-    frameIntervalRef.current = null;
-
-      }
-
-    if (sessionRef.current) {
+    const setupAudioPipeline = useCallback(async () => {
+        if (isAudioSetupRef.current) return true;
+        if (!isMountedRef.current) return false;
 
         try {
+            // 1. Audio Contexts
+            const InputAC = (window.AudioContext || (window as any).webkitAudioContext);
+            const OutputAC = (window.AudioContext || (window as any).webkitAudioContext);
+            
+            const inputCtx = new InputAC(); 
+            const outputCtx = new OutputAC({ sampleRate: 24000 }); 
+            
+            // Store in refs immediately
+            inputAudioCtxRef.current = inputCtx;
+            outputAudioCtxRef.current = outputCtx;
 
-          if (sessionRef.current && typeof sessionRef.current.close === 'function') {
+            // Output Node setup
+            const outputNode = outputCtx.createGain();
+            outputNode.connect(outputCtx.destination);
+            outputNodeRef.current = outputNode;
 
-        sessionRef.current.close();
+            // AI Analyser
+            const aiAnalyser = outputCtx.createAnalyser();
+            aiAnalyser.fftSize = 64;
+            outputNode.connect(aiAnalyser); 
+            aiAnalyserRef.current = aiAnalyser;
 
-          }
+            // 2. Mic Stream - Use Browser Native Processing
+            const preferredMicId = localStorage.getItem('preferredMicId');
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    channelCount: 1,
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true,
+                    deviceId: preferredMicId ? { exact: preferredMicId } : undefined
+                },
+                video: { facingMode: 'user' }
+            });
+            
+            // CRITICAL CHECK: If unmounted or closed during await
+            if (!isMountedRef.current || inputCtx.state === 'closed') {
+                console.warn("Component unmounted or context closed during getUserMedia. Aborting.");
+                stream.getTracks().forEach(t => t.stop());
+                return false;
+            }
 
-        } catch (error) {
+            micStreamRef.current = stream;
 
-          console.warn('Error closing session during reconnection:', error);
+            // Ensure AudioContext is running
+            if (inputCtx.state === 'suspended') {
+                await inputCtx.resume();
+            }
+            if (outputCtx.state === 'suspended') {
+                try {
+                    await outputCtx.resume();
+                } catch (e) {
+                    console.warn("Output context resume failed:", e);
+                }
+            }
+            
+            // CRITICAL CHECK AGAIN
+            if (!isMountedRef.current || inputCtx.state === 'closed') return false;
 
+            // Set video source
+            if (videoRef.current) {
+                videoRef.current.srcObject = stream;
+            }
+
+            // Mic Analyser
+            const source = inputCtx.createMediaStreamSource(stream);
+            const micAnalyser = inputCtx.createAnalyser();
+            micAnalyser.fftSize = 64;
+            source.connect(micAnalyser);
+            micAnalyserRef.current = micAnalyser;
+
+            // 3. Processor: Downsample to 16kHz and Send
+            console.log(`Audio Input Rate: ${inputCtx.sampleRate}Hz. Downsampling to 16000Hz.`);
+            
+            // CRITICAL CHECK AGAIN
+            if (inputCtx.state === 'closed') return false;
+
+            const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
+            scriptProcessor.onaudioprocess = (e) => {
+                // Safety check inside callback
+                if (!isMountedRef.current) return;
+
+                const inputData = e.inputBuffer.getChannelData(0);
+                
+                // Downsample to 16kHz
+                const downsampledData = downsampleBuffer(inputData, inputCtx.sampleRate, 16000);
+                
+                // Send to Gemini
+                const pcmBlob = createBlob(downsampledData);
+                sessionPromiseRef.current?.then(session => {
+                    session.sendRealtimeInput({ media: pcmBlob });
+                });
+                
+                // Visualizer
+                const rms = Math.sqrt(inputData.reduce((s, v) => s + v*v, 0) / inputData.length);
+                setIsMicActive(rms > 0.01); 
+            };
+            
+            source.connect(scriptProcessor);
+            scriptProcessor.connect(inputCtx.destination);
+            
+            // Record the processed stream
+            startRecording(stream);
+            
+            isAudioSetupRef.current = true;
+            return true;
+
+        } catch (err) {
+            console.error("Audio Setup failed", err);
+            alert("Could not start interview. Check permissions.");
+            return false;
+        }
+    }, [startRecording]);
+
+    const connectToGemini = useCallback(async (isReconnect = false) => {
+        // If reconnecting, wait a bit before trying (exponential backoff could be here)
+        if (isReconnect) {
+            setStatus('RECONNECTING');
+            await new Promise(r => setTimeout(r, 2000));
+        } else {
+            setStatus('CONNECTING');
         }
 
-        sessionRef.current = null;
-
-    }
-
-      isConnectingRef.current = false;
-
-    if (processorRef.current) {
-
-        processorRef.current.disconnect();
-
-        processorRef.current = null;
-
-      }
-
-      if (inputAudioContextRef.current && inputAudioContextRef.current.state !== 'closed') {
-
-        inputAudioContextRef.current.close();
-
-        inputAudioContextRef.current = null;
-
-      }
-
-      if (outputAudioContextRef.current && outputAudioContextRef.current.state !== 'closed') {
-
-        audioSourcesRef.current.forEach((source) => source.stop());
-
-        audioSourcesRef.current.clear();
-
-        outputAudioContextRef.current.close();
-
-        outputAudioContextRef.current = null;
-
-      }
-
-      processedAudioChunksRef.current.clear();
-
-    }
-
-  }, []);
-
-  const handleEndInterview = useCallback(() => {
-
-    if (onEndCalledRef.current) {
-
-      console.warn('onEnd already called, skipping duplicate call from handleEndInterview');
-
-      return;
-
-    }
-
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
-
-      mediaRecorderRef.current.stop();
-
-    } else {
-
-      if (!onEndCalledRef.current) {
-
-        onEndCalledRef.current = true;
-
-        stopInterviewFlow(true);
-
-        const pipelineState = pipelineRef.current?.getState();
-        onEnd(finalTranscript.current, '', pipelineState);
-
-      }
-
-    }
-
-  }, [stopInterviewFlow, onEnd]);
-
-  const floatTo16BitPCM = (input: Float32Array): Int16Array => {
-
-    const output = new Int16Array(input.length);
-
-    for (let i = 0; i < input.length; i++) {
-
-      const s = Math.max(-1, Math.min(1, input[i]));
-
-      output[i] = s < 0 ? s * 0x8000 : s * 0x7fff;
-
-    }
-
-    return output;
-
-  };
-
-  // Resample audio to target sample rate (linear interpolation)
-  const resampleAudio = (input: Float32Array, inputSampleRate: number, outputSampleRate: number): Float32Array => {
-    if (inputSampleRate === outputSampleRate) {
-      return input;
-    }
-    const ratio = inputSampleRate / outputSampleRate;
-    const outputLength = Math.round(input.length / ratio);
-    const output = new Float32Array(outputLength);
-    for (let i = 0; i < outputLength; i++) {
-      const srcIndex = i * ratio;
-      const srcIndexFloor = Math.floor(srcIndex);
-      const srcIndexCeil = Math.min(srcIndexFloor + 1, input.length - 1);
-      const t = srcIndex - srcIndexFloor;
-      output[i] = input[srcIndexFloor] * (1 - t) + input[srcIndexCeil] * t;
-    }
-    return output;
-  };
-
-  const startInterview = useCallback(async () => {
-
-    if (isConnectingRef.current || sessionRef.current) {
-
-      console.log('Connection already in progress or established, skipping...');
-
-      return;
-
-    }
-
-    isConnectingRef.current = true;
-
-    try {
-
-      // Get raw stream WITHOUT browser processing (RNNoise will handle it)
-      const stream = await navigator.mediaDevices.getUserMedia({
-
-        audio: {
-
-          channelCount: 1,
-
-          sampleRate: 48000, // RNNoise expects 48kHz
-
-          noiseSuppression: false, // Disabled - RNNoise will handle
-
-          echoCancellation: false, // Disabled - RNNoise will handle
-
-          autoGainControl: false, // Disabled - we'll add gain control after RNNoise
-
-        },
-
-        video: true,
-
-      });
-
-      streamRef.current = stream;
-
-      if (videoRef.current) {
-
-        videoRef.current.srcObject = stream;
-
-      }
-
-      if (retryCountRef.current === 0) {
-
-        recordedChunksRef.current = [];
-
-        onEndCalledRef.current = false;
-
-        mediaRecorderRef.current = new MediaRecorder(stream, { mimeType: 'video/webm' });
-
-        mediaRecorderRef.current.ondataavailable = (event) => {
-
-          if (event.data.size > 0) recordedChunksRef.current.push(event.data);
-
-        };
-
-        mediaRecorderRef.current.onstop = () => {
-
-          if (onEndCalledRef.current) {
-
-            console.warn('onEnd already called, skipping duplicate call from onstop');
-
-            return;
-
-          }
-
-          const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-
-          const url = URL.createObjectURL(blob);
-
-          stopInterviewFlow(true);
-
-          onEndCalledRef.current = true;
-
-          const pipelineState = pipelineRef.current?.getState();
-          onEnd(finalTranscript.current, url, pipelineState);
-
-        };
-
-        mediaRecorderRef.current.start();
-
-    } else {
-
-        onEndCalledRef.current = false;
-
-      }
-
-      // RNNoise works best at 48kHz, we'll resample to 16kHz for Gemini
-      inputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-
-        sampleRate: 48000, // RNNoise expects 48kHz
-
-      });
-
-      outputAudioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)({
-
-        sampleRate: 24000,
-
-      });
-
-      // RNNoise init (локальные файлы + fallback)
-
-      rnnoiseEnabledRef.current = false;
-
-      rnnoiseWasmBinaryRef.current = null;
-
-      try {
-
-        const wasmBinary = await loadRnnoise({
-
-          url: RNNOISE_WASM_URL,
-
-          simdUrl: RNNOISE_SIMD_WASM_URL,
-
-        });
-
-        rnnoiseWasmBinaryRef.current = wasmBinary;
-
-        await inputAudioContextRef.current!.audioWorklet.addModule(RNNOISE_WORKLET_URL);
-
-        rnnoiseEnabledRef.current = true;
-
-        console.log('RNNoise initialized');
-
-      } catch (err) {
-
-        console.warn('RNNoise init failed, using fallback chain without RNNoise:', err);
-
-        rnnoiseEnabledRef.current = false;
-
-      }
-      
-      const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-      
-      let reconnectPromptAddition = '';
-
-      if (retryCountRef.current > 0 && finalTranscript.current.length > 0) {
-
-        const historyText = finalTranscript.current.map((t) => `${t.speaker}: ${t.text}`).join('\n');
-
-        reconnectPromptAddition = `
-
-
-
----
-
-
-
-IMPORTANT: The connection was just re-established. Please resume the interview based on the transcript so far. Do not greet the user again, just continue with the next logical question.
-
-
-
-TRANSCRIPT:
-
-${historyText}
-
----`;
-
-      }
-
-      if (!pipelineRef.current) {
-
-        const systemPrompt = SYSTEM_PROMPT_TEMPLATE
-
-          .replace(/{CANDIDATE_NAME}/g, applicationData.name)
-
-          .replace(/{ROLE}/g, job.title)
-
-          .replace(/{LANGUAGE}/g, applicationData.language);
-
-        pipelineRef.current = new InterviewPipeline(process.env.API_KEY as string, systemPrompt, applicationData.parsedSkills || []);
-
-      }
-
-      const nextQuestionPlan = await pipelineRef.current.generateNextQuestion(
-
-        job.title,
-
-        applicationData.name,
-
-        applicationData.language,
-
-      );
-
-      currentQuestionPlanRef.current = {
-
-        topic: nextQuestionPlan.metadata.topic,
-
-        questionType: nextQuestionPlan.metadata.type as any,
-
-        depth: 'medium',
-
-        goal: 'Explore candidate knowledge',
-
-      };
-
-      currentQuestionRef.current = nextQuestionPlan.question;
-
-      questionStartTimeRef.current = Date.now();
-
-      // Get pipeline state safely (after generateNextQuestion)
-      const pipelineState = pipelineRef.current?.getState();
-
-      // Safe access to pipeline state properties
-      const discoveredStrengths = Array.isArray(pipelineState?.discoveredStrengths)
-        ? pipelineState.discoveredStrengths
-        : [];
-
-      const skillProfile = pipelineState?.skillProfile;
-      // skillProfile is an array of SkillScore in new pipeline
-      const topSkills = Array.isArray(skillProfile)
-        ? skillProfile.slice(0, 3)
-        : [];
-
-      const pipelineContext = `
-
-      
-
-Current Interview Context:
-
-- Questions asked: ${pipelineState?.questionsAsked ?? 0} / ${pipelineState?.totalQuestions ?? 10}
-
-- Interview phase: ${pipelineState?.interviewPhase ?? 'initial'}
-
-- Discovered strengths: ${
-        discoveredStrengths.length
-          ? discoveredStrengths.join(', ')
-          : 'None yet'
-      }
-
-- Top skills: ${
-        topSkills.length
-          ? topSkills.map((s: any) => `${s.name} (${s.level ?? 50})`).join(', ')
-          : 'None yet'
-      }
-
-
-
-Next question focus: ${nextQuestionPlan?.metadata?.topic ?? 'general'}
-
-Question type: ${nextQuestionPlan?.metadata?.type ?? 'general'}
-
+        if (!isMountedRef.current) return;
+
+        try {
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            
+            const resumeContext = `
+Name: ${applicationData.name}
+Email: ${applicationData.email}
+Profile Summary: ${applicationData.profileSummary || "N/A"}
+Skills: ${applicationData.parsedSkills?.join(", ") || "N/A"}
+LinkedIN: ${applicationData.linkedInUrl || "N/A"}
+GitHub: ${applicationData.githubUrl || "N/A"}
+Kaggle: ${applicationData.kaggleUrl || "N/A"}
+LeetCode: ${applicationData.leetcodeUrl || "N/A"}
+TryHackMe: ${applicationData.tryhackmeUrl || "N/A"}
+CodeForces: ${applicationData.codeforcesUrl || "N/A"}
 `;
 
-      const systemInstruction =
+            // Generate Strict Question Plan (RAG)
+            const plan = [
+                getQuestionForRoleAndStage(job.title, 'Background', 1) || "Расскажите о себе и своем опыте.",
+                getQuestionForRoleAndStage(job.title, 'Core', 2) || "Какие основные инструменты вы используете?",
+                getQuestionForRoleAndStage(job.title, 'Core', 3) || "Углубимся в технические детали.",
+                getQuestionForRoleAndStage(job.title, 'DeepDive', 4) || "Расскажите о сложной проблеме, которую вы решили.",
+                getQuestionForRoleAndStage(job.title, 'Case', 3) || "Давайте разберем практический кейс.",
+                getQuestionForRoleAndStage(job.title, 'WrapUp', 2) || "Какие у вас есть вопросы?"
+            ];
 
-        SYSTEM_PROMPT_TEMPLATE.replace(/{CANDIDATE_NAME}/g, applicationData.name)
+            let systemInstruction = `
+ROLE: You are Zarina, an expert technical interviewer from Wind AI.
+Your goal is to run a structured, professional technical interview for the ${job.title} role.
 
-          .replace(/{ROLE}/g, job.title)
+STARTING RULES (VERY IMPORTANT):
+1. YOU initiate the conversation once (do not wait for the candidate).
+2. Greeting script (translate to ${applicationData.language || 'English'}):
+   "Здравствуйте, я Зарина из Wind AI. Мы проведём техническое интервью на позицию ${job.title}. Готовы начать?"
+3. After the greeting, immediately follow the structure below and DO NOT repeat the greeting later.
 
-          .replace(/{LANGUAGE}/g, applicationData.language) +
+INTERVIEW PLAN (STRICTLY FOLLOW THIS SEQUENCE):
+1. Greeting & Intro
+2. Question 1: ${plan[0]}
+3. Question 2: ${plan[1]}
+4. Question 3: ${plan[2]}
+5. Question 4: ${plan[3]}
+6. Question 5: ${plan[4]}
+7. Question 6: ${plan[5]}
+8. Closing
 
-        reconnectPromptAddition +
+LANGUAGE RULE:
+- Conduct the entire interview strictly in ${applicationData.language || 'English'}.
+- If the candidate slips into another language, remind them (politely) to continue in ${applicationData.language || 'English'} and continue.
 
-        pipelineContext;
-      
-      const sessionPromise = ai.live.connect({
+BEHAVIORAL RULES:
+1. Be concise, professional, analytical.
+2. Ask only one question at a time.
+3. Drill down on vague answers.
+4. If the candidate gives a nonsense/very short response (e.g., "s", ".", "не знаю"):
+   - Do NOT praise.
+   - Say: "Я не расслышала детали. Уточните, пожалуйста." and ask a more focused follow-up.
 
-        model: LIVE_MODEL_ID,
+CANDIDATE CONTEXT:
+${resumeContext}
+`;
 
-        config: {
-
-          responseModalities: [Modality.AUDIO],
-
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-
-          systemInstruction,
-
-          inputAudioTranscription: {},
-
-          outputAudioTranscription: {},
-
-        },
-
-        callbacks: {
-
-          onopen: async () => {
-
-            isConnectingRef.current = false;
-
-            const wasReconnecting = statusRef.current === 'RECONNECTING' || retryCountRef.current > 0;
-
-            setStatus('LISTENING');
-
-            retryCountRef.current = 0;
-
-            if (wasReconnecting) {
-
-              onEndCalledRef.current = false;
-
+            if (isReconnect && transcriptHistory.length > 0) {
+                // Provide context on reconnect
+                const lastTurns = transcriptHistory.slice(-10).map(t => `${t.speaker}: ${t.text}`).join('\n');
+                systemInstruction += `\n\nSYSTEM NOTICE: The connection was briefly interrupted and restored. Resume the interview naturally from where you left off. Do NOT greet the user again. Here is the recent context:\n${lastTurns}`;
             }
 
-            if (finalTranscript.current.length === 0) {
+            const config = {
+                model: 'gemini-2.5-flash-native-audio-preview-09-2025',
+                callbacks: {
+                    onopen: async () => {
+                        if (!isMountedRef.current) return;
+                        console.log("Session opened (Reconnect: " + isReconnect + ")");
+                        setStatus('CONNECTED');
+                        retryCountRef.current = 0;
+                        isReconnectingRef.current = false;
 
-              const silence = new Float32Array(4096).fill(0);
+                        // KICKSTART: Wait a bit for connection to stabilize, then send text trigger
+                        if (!isReconnect) {
+                            // Start Video Streaming
+                            if (videoIntervalRef.current) clearInterval(videoIntervalRef.current);
+                            videoIntervalRef.current = setInterval(() => {
+                                if (!videoRef.current || !sessionPromiseRef.current) return;
+                                
+                                const canvas = document.createElement('canvas');
+                                canvas.width = 640;
+                                canvas.height = 480;
+                                const ctx = canvas.getContext('2d');
+                                if (ctx) {
+                                    ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
+                                    const base64 = canvas.toDataURL('image/jpeg', 0.5).split(',')[1];
+                                    
+                                    sessionPromiseRef.current.then(session => {
+                                        session.sendRealtimeInput({
+                                            media: {
+                                                mimeType: 'image/jpeg',
+                                                data: base64
+                                            }
+                                        });
+                                    });
+                                }
+                            }, 2000);
 
-              const silentPcmBlob: GenAIBlob = {
+                            setTimeout(() => {
+                                if (!isMountedRef.current) return;
+                                const startPrompt = `SYSTEM: The user has connected. IMMEDIATELY start the interview in ${applicationData.language || 'English'}. Introduce yourself and ask the first question.`;
+                                sessionPromiseRef.current?.then(session => {
+                                    console.log("Sending kickstart prompt...");
+                                    session.sendRealtimeInput({ 
+                                        content: [{ text: startPrompt }] 
+                                    });
+                                });
+                            }, 2000);
+                        }
+                    },
+                    onmessage: async (msg: LiveServerMessage) => {
+                        if (!isMountedRef.current) return;
+                        // 1. Audio Output
+                        const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
+                        if (audioData) {
+                            setIsAiSpeaking(true);
+                            const ctx = outputAudioCtxRef.current!;
+                            nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
+                            
+                            const buffer = await decodeAudioData(
+                                decode(audioData),
+                                ctx,
+                                24000,
+                                1
+                            );
+                            
+                            const source = ctx.createBufferSource();
+                            source.buffer = buffer;
+                            source.connect(outputNodeRef.current!);
+                            source.addEventListener('ended', () => {
+                                sourcesRef.current.delete(source);
+                                if (sourcesRef.current.size === 0) setIsAiSpeaking(false);
+                            });
+                            
+                            source.start(nextStartTimeRef.current);
+                            nextStartTimeRef.current += buffer.duration;
+                            sourcesRef.current.add(source);
+                        }
 
-                  data: encode(new Uint8Array(floatTo16BitPCM(silence).buffer)),
+                        // 2. Transcription
+                        const outTrans = msg.serverContent?.outputTranscription?.text;
+                        if (outTrans) setCurrentOutputTrans(prev => prev + outTrans);
 
-                  mimeType: 'audio/pcm;rate=16000',
+                        const inTrans = msg.serverContent?.inputTranscription?.text;
+                        if (inTrans) setCurrentInputTrans(prev => prev + inTrans);
 
-              };
+                        // 3. Turn Complete
+                        if (msg.serverContent?.turnComplete) {
+                            const isInterrupted = msg.serverContent?.interrupted;
+                            
+                            // Flush User Transcript if any
+                            setCurrentInputTrans(currIn => {
+                                if (currIn.trim()) {
+                                    setTranscriptHistory(h => {
+                                        // Deduplicate: Don't add if same as last user message
+                                        const last = h[h.length - 1];
+                                        if (last && last.speaker === Speaker.USER && last.text === currIn.trim()) {
+                                            return h;
+                                        }
+                                        return [...h, { speaker: Speaker.USER, text: currIn.trim(), isFinal: true }];
+                                    });
+                                }
+                                return "";
+                            });
+                            
+                            // Flush AI Transcript if any
+                            setCurrentOutputTrans(currOut => {
+                                if (currOut.trim()) {
+                                    setTranscriptHistory(h => {
+                                        // Deduplicate: Don't add if same as last AI message
+                                        const last = h[h.length - 1];
+                                        if (last && last.speaker === Speaker.AI && last.text === currOut.trim()) {
+                                            return h;
+                                        }
+                                        return [...h, { speaker: Speaker.AI, text: currOut.trim(), isFinal: true }];
+                                    });
+                                }
+                                return "";
+                            });
 
-              sessionPromise
-
-                .then((session) => {
-
-                  if (session && sessionRef.current === session) {
-
-                    try {
-
-                      session.sendRealtimeInput({ media: silentPcmBlob });
-
-                    } catch (error) {
-
-                      console.warn('Failed to send silence burst:', error);
-
+                            if (isInterrupted) {
+                                sourcesRef.current.forEach(s => s.stop());
+                                sourcesRef.current.clear();
+                                nextStartTimeRef.current = 0;
+                                setIsAiSpeaking(false);
+                            }
+                        }
+                    },
+                    onclose: () => {
+                        console.log("Session closed");
+                        if (isMountedRef.current && status !== 'DISCONNECTED') { // If not manually closed
+                             handleReconnect();
+                        }
+                    },
+                    onerror: (e: any) => {
+                        console.error("Session error", e);
+                        if (isMountedRef.current && status !== 'DISCONNECTED') {
+                             handleReconnect();
+                        }
                     }
-
-                  }
-
-                })
-
-                .catch((error) => {
-
-                  console.warn('Session promise rejected when sending silence:', error);
-
-                });
-
-            }
-
-            const source = inputAudioContextRef.current!.createMediaStreamSource(stream);
-
-            // Пытаемся использовать AudioWorklet (современный API), fallback на ScriptProcessorNode
-            let audioProcessor: AudioNode;
-            try {
-              if (!workletLoadedRef.current) {
-                // Пробуем разные пути для AudioWorklet
-                const workletPaths = [
-                  '/audio-processor-worklet.js',
-                  './audio-processor-worklet.js',
-                  new URL('/audio-processor-worklet.js', window.location.href).href,
-                ];
-                
-                let workletLoaded = false;
-                for (const path of workletPaths) {
-                  try {
-                    await inputAudioContextRef.current!.audioWorklet.addModule(path);
-                    workletLoaded = true;
-                    console.log(`[AudioWorklet] Successfully loaded from: ${path}`);
-                    break;
-                  } catch (pathErr) {
-                    console.warn(`[AudioWorklet] Failed to load from ${path}:`, pathErr);
-                  }
+                },
+                config: {
+                    responseModalities: [Modality.AUDIO],
+                    speechConfig: {
+                        voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } }
+                    },
+                    systemInstruction: systemInstruction,
+                    inputAudioTranscription: {},
+                    outputAudioTranscription: {},
                 }
-                
-                if (!workletLoaded) {
-                  throw new Error('Failed to load AudioWorklet from all attempted paths');
-                }
-                
-                workletLoadedRef.current = true;
-              }
-              const workletNode = new AudioWorkletNode(inputAudioContextRef.current!, 'audio-processor-worklet');
-              processorRef.current = workletNode;
-              audioProcessor = workletNode;
-              console.log('[AudioWorklet] AudioWorkletNode created successfully');
-            } catch (err) {
-              console.warn('[AudioWorklet] AudioWorklet not available, using ScriptProcessorNode (deprecated):', err);
-              // Fallback на ScriptProcessorNode для совместимости
-              const scriptProcessor = inputAudioContextRef.current!.createScriptProcessor(4096, 1, 1);
-              processorRef.current = scriptProcessor as any;
-              audioProcessor = scriptProcessor;
-              console.log('[AudioWorklet] Using ScriptProcessorNode fallback');
-            }
-            
-            // Сохраняем ссылку для последующего использования
-            const audioProcessorRef = audioProcessor;
-
-            const analyser = inputAudioContextRef.current!.createAnalyser();
-
-            analyser.fftSize = 512;
-
-            analyser.smoothingTimeConstant = 0.3;
-
-            noiseGateAnalyserRef.current = analyser;
-
-            const highPassFilter = inputAudioContextRef.current!.createBiquadFilter();
-
-            highPassFilter.type = 'highpass';
-
-            highPassFilter.frequency.value = 100;
-
-            const lowPassFilter = inputAudioContextRef.current!.createBiquadFilter();
-
-            lowPassFilter.type = 'lowpass';
-
-            lowPassFilter.frequency.value = 7000;
-
-            const compressor = inputAudioContextRef.current!.createDynamicsCompressor();
-
-            compressor.threshold.value = -50;
-
-            compressor.knee.value = 40;
-
-            compressor.ratio.value = 12;
-
-            compressor.attack.value = 0.003;
-
-            compressor.release.value = 0.25;
-
-            const gainNode = inputAudioContextRef.current!.createGain();
-
-            gainNode.gain.value = 1.5;
-
-            let processedSource: AudioNode = source;
-
-            if (rnnoiseEnabledRef.current && rnnoiseWasmBinaryRef.current) {
-
-              try {
-
-                const rnnoiseNode = new RnnoiseWorkletNode(inputAudioContextRef.current!, {
-
-                  maxChannels: 1,
-
-                  wasmBinary: rnnoiseWasmBinaryRef.current,
-
-                });
-
-                source.connect(analyser); // визуализация на чистом сигнале после mic
-
-                source.connect(rnnoiseNode);
-
-                processedSource = rnnoiseNode;
-
-              } catch (err) {
-
-                console.warn('Failed to create RNNoise node, continuing without it:', err);
-
-                processedSource = source;
-
-                source.connect(analyser);
-
-              }
-
-            } else {
-
-              source.connect(analyser);
-
-              processedSource = source;
-
-            }
-
-            processedSource.connect(highPassFilter);
-
-            highPassFilter.connect(lowPassFilter);
-
-            lowPassFilter.connect(compressor);
-
-            compressor.connect(gainNode);
-
-            gainNode.connect(audioProcessor);
-            
-            // Обработка аудио данных
-            const handleAudioData = (inputData: Float32Array) => {
-
-              if (!sessionRef.current || statusRef.current === 'ENDED') {
-
-                return;
-
-              }
-
-              // Improved VAD gate after RNNoise
-              let energy = 0;
-              let peakEnergy = 0;
-              let zeroCrossings = 0;
-
-              for (let i = 0; i < inputData.length; i++) {
-
-                const s = inputData[i];
-
-                const a = Math.abs(s);
-
-                energy += a * a;
-
-                if (a > peakEnergy) peakEnergy = a;
-
-                // Zero crossing rate (voice has more crossings than noise)
-                if (i > 0 && (inputData[i] >= 0) !== (inputData[i - 1] >= 0)) {
-                  zeroCrossings++;
-                }
-
-              }
-
-              const rms = Math.sqrt(energy / inputData.length);
-              const zcr = zeroCrossings / inputData.length;
-
-              // Adaptive thresholds - more lenient after RNNoise
-              const MIN_RMS = 0.008; // Lower threshold since RNNoise already cleaned
-              const MIN_PEAK = 0.03;
-              const MIN_ZCR = 0.01; // Voice typically has higher ZCR
-
-              const isVoice = rms > MIN_RMS && peakEnergy > MIN_PEAK && zcr > MIN_ZCR;
-
-              if (!isVoice) {
-
-                return; // Gate closed - silence
-
-              }
-
-              // Resample from 48kHz to 16kHz for Gemini
-              const resampledData = resampleAudio(inputData, 48000, 16000);
-              
-              const pcm16 = floatTo16BitPCM(resampledData);
-
-              const pcmBlob: GenAIBlob = {
-
-                data: encode(new Uint8Array(pcm16.buffer)),
-
-                mimeType: 'audio/pcm;rate=16000',
-
-              };
-
-              sessionPromise
-
-                .then((session) => {
-
-                  if (session && sessionRef.current === session && statusRef.current !== 'ENDED') {
-
-                    try {
-
-                      session.sendRealtimeInput({ media: pcmBlob });
-
-                    } catch (error) {
-
-                      if (
-
-                        error instanceof Error &&
-
-                        !error.message.includes('CLOSING') &&
-
-                        !error.message.includes('CLOSED')
-
-                      ) {
-
-                        console.warn('Failed to send audio input:', error);
-
-                      }
-
-                    }
-
-                  }
-
-                })
-
-                .catch((error) => {
-
-                  if (statusRef.current !== 'ENDED') {
-
-                    console.warn('Session promise rejected when sending audio:', error);
-
-                  }
-
-                });
-
             };
 
-            // Подключаем обработчики в зависимости от типа процессора
-            if (processorRef.current instanceof AudioWorkletNode) {
-              // AudioWorkletNode - используем port.onmessage
-              processorRef.current.port.onmessage = (event) => {
-                if (event.data.type === 'audioData') {
-                  handleAudioData(event.data.data);
-                }
-              };
-            } else {
-              // ScriptProcessorNode - используем onaudioprocess (fallback)
-              (processorRef.current as any).onaudioprocess = (audioProcessingEvent: AudioProcessingEvent) => {
-                const inputData = audioProcessingEvent.inputBuffer.getChannelData(0);
-                handleAudioData(inputData);
-              };
+            const sessionPromise = ai.live.connect(config);
+            sessionPromiseRef.current = sessionPromise;
+
+        } catch (err) {
+            console.error("Connection failed", err);
+            handleReconnect();
+        }
+    }, [job, applicationData, transcriptHistory, status]);
+
+    const handleReconnect = useCallback(() => {
+        if (isReconnectingRef.current || status === 'DISCONNECTED') return;
+        
+        if (retryCountRef.current < 5) {
+            isReconnectingRef.current = true;
+            retryCountRef.current++;
+            console.log(`Attempting reconnect ${retryCountRef.current}...`);
+            connectToGemini(true);
+        } else {
+            setStatus('DISCONNECTED');
+            alert("Connection lost. Please check your internet.");
+        }
+    }, [connectToGemini, status]);
+
+    // -- Initialize --
+    useEffect(() => {
+        const init = async () => {
+            const audioReady = await setupAudioPipeline();
+            if (isMountedRef.current && audioReady) {
+                connectToGemini(false);
             }
-            
-            const muteNode = inputAudioContextRef.current!.createGain();
-
-            muteNode.gain.value = 0;
-
-            audioProcessorRef.connect(muteNode);
-
-            muteNode.connect(inputAudioContextRef.current!.destination);
-            
-            if (frameIntervalRef.current) clearInterval(frameIntervalRef.current);
-
-            frameIntervalRef.current = window.setInterval(() => {
-
-              if (!sessionRef.current || statusRef.current === 'ENDED') {
-
-                return;
-
-              }
-
-              if (videoRef.current && canvasRef.current && videoRef.current.readyState >= 2) {
-
-                const videoEl = videoRef.current;
-
-                const canvasEl = canvasRef.current;
-
-                const ctx = canvasEl.getContext('2d');
-
-                    if (!ctx) return;
-                    
-                canvasEl.width = videoEl.videoWidth;
-
-                canvasEl.height = videoEl.videoHeight;
-
-                ctx.drawImage(videoEl, 0, 0, videoEl.videoWidth, videoEl.videoHeight);
-
-                canvasEl.toBlob(
-
-                        async (blob) => {
-
-                    if (blob && sessionRef.current && statusRef.current !== 'ENDED') {
-
-                                const base64Data = await blobToBase64(blob);
-
-                      sessionPromise
-
-                        .then((session) => {
-
-                          if (session && sessionRef.current === session && statusRef.current !== 'ENDED') {
-
-                            try {
-
-                              session.sendRealtimeInput({
-
-                                media: { data: base64Data, mimeType: 'image/jpeg' },
-
-                              });
-
-                            } catch (error) {
-
-                              if (
-
-                                error instanceof Error &&
-
-                                !error.message.includes('CLOSING') &&
-
-                                !error.message.includes('CLOSED')
-
-                              ) {
-
-                                console.warn('Failed to send video frame:', error);
-
-                              }
-
-                            }
-
-                          }
-
-                        })
-
-                        .catch((error) => {
-
-                          if (statusRef.current !== 'ENDED') {
-
-                            console.warn('Session promise rejected when sending video:', error);
-
-                          }
-
-                        });
-
-                    }
-
-                  },
-
-                  'image/jpeg',
-
-                  JPEG_QUALITY,
-
-                );
-
-              }
-
-            }, 1000 / FRAME_RATE);
-
-          },
-
-          onmessage: async (message: LiveServerMessage) => {
-
-             if (message.serverContent?.inputTranscription) {
-
-              const newText = message.serverContent.inputTranscription.text;
-
-              if (newText && answerStartTimeRef.current === 0) {
-
-                answerStartTimeRef.current = Date.now();
-
-              }
-
-              if (newText && !inputTranscriptionBufferRef.current.includes(newText)) {
-
-                inputTranscriptionBufferRef.current += newText;
-
-                setTranscript((prev) => {
-
-                const last = prev[prev.length - 1];
-
-                if (last?.speaker === Speaker.USER && !last.isFinal) {
-
-                  return [...prev.slice(0, -1), { ...last, text: inputTranscriptionBufferRef.current }];
-
-                  }
-
-                  return [
-
-                    ...prev,
-
-                    { speaker: Speaker.USER, text: inputTranscriptionBufferRef.current, isFinal: false },
-
-                  ];
-
-                });
-
-              }
-
-            }
-
-            if (message.serverContent?.outputTranscription) {
-
-              const newText = message.serverContent.outputTranscription.text;
-
-              if (newText && questionStartTimeRef.current === 0) {
-
-                questionStartTimeRef.current = Date.now();
-
-                answerStartTimeRef.current = 0;
-
-              }
-
-              if (newText && !outputTranscriptionBufferRef.current.includes(newText)) {
-
-              setStatus('SPEAKING');
-
-                outputTranscriptionBufferRef.current += newText;
-
-                setTranscript((prev) => {
-
-                const last = prev[prev.length - 1];
-
-                if (last?.speaker === Speaker.AI && !last.isFinal) {
-
-                    return [...prev.slice(0, -1), { ...last, text: outputTranscriptionBufferRef.current }];
-
-                }
-
-                return [...prev, { speaker: Speaker.AI, text: outputTranscriptionBufferRef.current, isFinal: false }];
-
-              });
-
-            }
-
-            }
-
-            if (message.serverContent?.turnComplete) {
-
-              setTranscript((prev) => prev.map((entry) => ({ ...entry, isFinal: true })));
-
-              const userAnswer = inputTranscriptionBufferRef.current.trim();
-
-              const aiQuestion = outputTranscriptionBufferRef.current.trim() || currentQuestionRef.current;
-
-              if (userAnswer && pipelineRef.current && currentQuestionPlanRef.current) {
-
-                const responseTime =
-
-                  answerStartTimeRef.current > 0
-
-                    ? answerStartTimeRef.current - questionStartTimeRef.current
-
-                    : 0;
-
-                const answerDuration = Date.now() - (answerStartTimeRef.current || Date.now());
-
-                // Prevent double processing
-                if (turnEvalInProgressRef.current) {
-                  console.log('[Pipeline] Turn evaluation already in progress, skipping...');
-                  return;
-                }
-
-                turnEvalInProgressRef.current = true;
-
-                pipelineRef.current
-
-                  .processAnswer(aiQuestion, userAnswer, currentQuestionPlanRef.current, responseTime, answerDuration)
-
-                  .then((evaluation) => {
-
-                    console.log('[Pipeline] Answer evaluated:', evaluation);
-
-                  })
-
-                  .catch((error) => {
-
-                    console.error('[Pipeline] Error processing answer:', error);
-
-                  })
-
-                  .finally(() => {
-
-                    turnEvalInProgressRef.current = false;
-
-                  });
-
-                // Prevent double next question generation
-                if (nextQuestionInProgressRef.current) {
-                  console.log('[Pipeline] Next question generation already in progress, skipping...');
-                  return;
-                }
-
-                nextQuestionInProgressRef.current = true;
-
-                pipelineRef.current
-
-                  .generateNextQuestion(job.title, applicationData.name, applicationData.language)
-
-                  .then((nextPlan) => {
-
-                    currentQuestionPlanRef.current = {
-
-                      topic: nextPlan.metadata.topic,
-
-                      questionType: nextPlan.metadata.type as any,
-
-                      depth: 'medium',
-
-                      goal: 'Explore candidate knowledge',
-
-                    };
-
-                    currentQuestionRef.current = nextPlan.question;
-
-                    questionStartTimeRef.current = Date.now();
-
-                    answerStartTimeRef.current = 0;
-
-                  })
-
-                  .catch((error) => {
-
-                    console.error('[Pipeline] Error generating next question:', error);
-
-                  })
-
-                  .finally(() => {
-
-                    nextQuestionInProgressRef.current = false;
-
-                  });
-
-              }
-
-                inputTranscriptionBufferRef.current = '';
-
-                outputTranscriptionBufferRef.current = '';
-
-              if (statusRef.current === 'SPEAKING') setStatus('LISTENING');
-
-            }
-
-            const modelTurn = message.serverContent?.modelTurn;
-
-            const base64Audio = modelTurn?.parts?.[0]?.inlineData?.data;
-
-            if (base64Audio && outputAudioContextRef.current) {
-
-              const audioHash = `${base64Audio.substring(0, 100)}_${base64Audio.length}`;
-
-              if (processedAudioChunksRef.current.has(audioHash)) {
-
-                console.log('Skipping duplicate audio chunk');
-
-                return;
-
-              }
-
-              processedAudioChunksRef.current.add(audioHash);
-
-              if (processedAudioChunksRef.current.size > 50) {
-
-                const firstHash = Array.from(processedAudioChunksRef.current)[0];
-
-                processedAudioChunksRef.current.delete(firstHash);
-
-              }
-
-              try {
-
-                const audioBuffer = await decodeAudioData(
-
-                  decode(base64Audio),
-
-                  outputAudioContextRef.current,
-
-                  24000,
-
-                  1,
-
-                );
-
-                if (!audioBuffer || audioBuffer.length === 0) {
-
-                  processedAudioChunksRef.current.delete(audioHash);
-
-                  return;
-
-                }
-
-                const source = outputAudioContextRef.current.createBufferSource();
-
-                source.buffer = audioBuffer;
-
-                source.connect(outputAudioContextRef.current.destination);
-                
-                const currentTime = outputAudioContextRef.current.currentTime;
-
-                nextAudioStartTimeRef.current = Math.max(nextAudioStartTimeRef.current, currentTime);
-                
-                source.start(nextAudioStartTimeRef.current);
-
-                nextAudioStartTimeRef.current += audioBuffer.duration;
-
-                audioSourcesRef.current.add(source);
-
-                source.onended = () => {
-
-                  audioSourcesRef.current.delete(source);
-
-                  setTimeout(() => {
-
-                    processedAudioChunksRef.current.delete(audioHash);
-
-                  }, 2000);
-
-                };
-
-                // @ts-ignore
-
-                source.onerror = () => {
-
-                  audioSourcesRef.current.delete(source);
-
-                  processedAudioChunksRef.current.delete(audioHash);
-
-                };
-
-              } catch (error) {
-
-                console.error('Error decoding/playing audio:', error);
-
-                processedAudioChunksRef.current.delete(audioHash);
-
-              }
-
-            }
-
-          },
-
-          onerror: (e: ErrorEvent) => {
-
-            console.error('Session error:', e);
-
-            isConnectingRef.current = false;
-
-            if (statusRef.current !== 'ENDED' && statusRef.current !== 'RECONNECTING') {
-
-              console.log('Connection error, will attempt to reconnect...');
-
-              setStatus('RECONNECTING');
-
-            }
-
-          },
-
-          onclose: () => {
-
-            console.log('Session closed');
-
-            isConnectingRef.current = false;
-
-            if (statusRef.current !== 'ENDED' && statusRef.current !== 'RECONNECTING') {
-
-              console.log('Connection closed, will attempt to reconnect...');
-
-              setStatus('RECONNECTING');
-
-            }
-
-          },
-
-        },
-
-      });
-
-      sessionRef.current = await sessionPromise;
-
-      isConnectingRef.current = false;
-
-    } catch (error) {
-
-      console.error('Failed to start interview:', error);
-
-      isConnectingRef.current = false;
-
-      if (statusRef.current !== 'ENDED' && statusRef.current !== 'RECONNECTING') {
-
-        console.log('Failed to start, will attempt to reconnect...');
-
-        setStatus('RECONNECTING');
-
-      }
-
-    }
-
-  }, [job.title, onEnd, applicationData.name, applicationData.language, stopInterviewFlow]);
-  
-  useEffect(() => {
-
-    if (status === 'RECONNECTING') {
-
-      stopInterviewFlow(false);
-
-      if (retryCountRef.current < MAX_RETRIES) {
-
-        retryCountRef.current++;
-
-        const delay = 1000 * Math.pow(2, retryCountRef.current - 1);
-
-        const timer = setTimeout(() => startInterview(), delay);
-
-        return () => clearTimeout(timer);
-
-      } else {
-
-        setStatus('ERROR');
-
-        handleEndInterview();
-
-      }
-
-    }
-
-  }, [status, startInterview, stopInterviewFlow, handleEndInterview]);
-  
-  useEffect(() => {
-
-    startInterview();
-
-    const intervalId = setInterval(() => setTimer((t) => t + 1), 1000);
-
-    return () => {
-
-      clearInterval(intervalId);
-
-      stopInterviewFlow(true);
-
+        };
+        init();
+    }, []); 
+
+    const handleEndInterview = async () => {
+        setStatus('DISCONNECTED');
+        
+        // Stop recording properly to ensure ondataavailable fires for the last chunk
+        if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+             await new Promise<void>(resolve => {
+                 if (mediaRecorderRef.current) {
+                    mediaRecorderRef.current.onstop = () => resolve();
+                    mediaRecorderRef.current.stop();
+                 } else {
+                     resolve();
+                 }
+             });
+        }
+        
+        // STOP ALL MEDIA HERE
+        stopMedia();
+        
+        // Ensure final transcription bits are saved
+        const finalTranscript = [...transcriptHistory];
+        if (currentInputTrans.trim()) finalTranscript.push({ speaker: Speaker.USER, text: currentInputTrans.trim(), isFinal: true });
+        if (currentOutputTrans.trim()) finalTranscript.push({ speaker: Speaker.AI, text: currentOutputTrans.trim(), isFinal: true });
+
+        // Create blob
+        let recordingBlob: Blob | null = null;
+        if (recordedChunksRef.current.length > 0) {
+             recordingBlob = new Blob(recordedChunksRef.current, { type: recordingMimeTypeRef.current || 'video/webm' });
+        }
+        const url = recordingBlob ? URL.createObjectURL(recordingBlob) : "";
+
+        // Mock State for pipeline summary generation
+        const mockState: InterviewState = {
+            role: job.title,
+            stage: 'WrapUp',
+            difficulty: 3,
+            skillProfile: { communication: 0.5, reasoning: 0.5, domain: 0.5 },
+            transcript: finalTranscript.map(t => ({
+                q: t.speaker === Speaker.AI ? t.text : "",
+                a: t.speaker === Speaker.USER ? t.text : ""
+            })).reduce((acc: any[], curr) => {
+                // Merge adjacent turns roughly
+                if (curr.q) acc.push({ q: curr.q, a: "" });
+                else if (curr.a && acc.length > 0) acc[acc.length-1].a += " " + curr.a;
+                return acc;
+            }, []),
+            usedQuestions: [],
+            finished: true,
+            hasGreeted: true,
+            consecutiveSilence: 0,
+            language: applicationData.language,
+            externalContext: ""
+        };
+
+        // Generate Summary
+        const res = await finalizeInterview(mockState);
+        
+        onEnd(finalTranscript, url, res.summary, res.antiCheat);
     };
 
-  }, [startInterview, stopInterviewFlow]);
-
-  const formatTime = (seconds: number) =>
-
-    `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`;
-
-  const getStatusIndicator = () => {
-
-    switch (status) {
-
-      case 'CONNECTING':
-
-        return { text: 'Connecting...', color: 'bg-yellow-500' };
-
-      case 'RECONNECTING':
-
-        return { text: `Reconnecting (${retryCountRef.current})...`, color: 'bg-orange-500' };
-
-      case 'LISTENING':
-
-        return { text: 'Listening...', color: 'bg-green-500' };
-
-      case 'SPEAKING':
-
-        return { text: 'AI is Speaking...', color: 'bg-cyan-500' };
-
-      case 'THINKING':
-
-        return { text: 'Thinking...', color: 'bg-indigo-500' };
-
-      case 'ENDED':
-
-        return { text: 'Interview Ended', color: 'bg-neutral-500' };
-
-      case 'ERROR':
-
-        return { text: 'Connection Error', color: 'bg-red-500' };
-
-      default:
-
-        return { text: 'Initializing...', color: 'bg-neutral-500' };
-
-    }
-
-  };
-
-  const { text: statusText, color: statusColor } = getStatusIndicator();
-
   return (
-
-    <div className="bg-neutral-900 rounded-2xl shadow-2xl border border-white/10 w-full h-[80vh] flex flex-col">
-
-       <div className="relative w-full aspect-video bg-black rounded-t-2xl overflow-hidden">
-
-        <video
-
-          ref={videoRef}
-
-          autoPlay
-
-          muted
-
-          playsInline
-
-          className="w-full h-full object-cover"
-
-          style={{ transform: 'scaleX(-1)' }}
-
-        />
-
-        <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-t from-neutral-900/80 via-transparent to-transparent" />
-
-        <header className="absolute bottom-0 left-0 w-full flex justify-between items-end p-4 text-white">
-
-          <h2 className="text-xl font-bold">{job.title} Interview</h2>
-
-          <div className="flex items-center space-x-4">
-
-              <div className="flex items-center space-x-2 bg-black/30 backdrop-blur-sm p-2 rounded-lg">
-
-              <div
-
-                className={`w-3 h-3 rounded-full ${statusColor} ${
-
-                  status !== 'ENDED' && status !== 'ERROR' ? 'animate-pulse' : ''
-
-                }`}
-
-              ></div>
-
-                  <span className="text-sm">{statusText}</span>
-
-              </div>
-
-            <div className="bg-black/30 backdrop-blur-sm font-mono text-lg px-3 py-1 rounded-lg">
-
-              {formatTime(timer)}
-
-          </div>
-
-          </div>
-
-        </header>
-
-      </div>
-
-      <main className="flex-grow overflow-y-auto p-4 pr-2">
-
-        {/* Баннер о деградации LLM */}
-        {pipelineRef.current?.getState()?.hasLLMDegraded && (
-          <div className="mb-4 p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
-            <p className="text-xs text-yellow-400 flex items-center gap-2">
-              <span>⚠</span>
-              <span>LLM перегружен / квота ограничена. Оценка и вопросы частично строятся локально, без глубокого анализа.</span>
-            </p>
-          </div>
-        )}
-
-        <div className="space-y-6">
-
-          {transcript.map((entry, index) => (
-
-            <div
-
-              key={index}
-
-              className={`flex items-start gap-3 ${entry.speaker === Speaker.USER ? 'justify-end' : ''}`}
-
-            >
-
-              {entry.speaker === Speaker.AI && (
-
-                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-indigo-500 grid place-items-center">
-
-                  <SpeakerIcon />
-
-                </div>
-
-              )}
-
-              <div
-
-                className={`max-w-xl p-4 rounded-2xl ${
-
-                  entry.speaker === Speaker.AI ? 'bg-neutral-800 rounded-tl-none' : 'bg-cyan-600 text-white rounded-br-none'
-
-                }`}
-
-              >
-
-                <p className="font-bold text-sm mb-1 opacity-80">{entry.speaker}</p>
-
-                <div className="flex items-end">
-
-                  <p className={`text-base ${entry.isFinal ? '' : 'opacity-70'}`}>
-
-                    {entry.text || '\u200B'}
-
-                  </p>
-
-                  {!entry.isFinal && <TypingIndicator />}
-
-                </div>
-
-              </div>
-
+        <div className="fixed inset-0 z-50 bg-black flex flex-col text-white font-sans overflow-hidden">
+            
+            {/* Background Video Layer */}
+            <div className="absolute inset-0 z-0 opacity-40">
+                <video 
+                    ref={videoRef} 
+                    autoPlay muted playsInline 
+                    className="w-full h-full object-cover scale-x-[-1] blur-sm" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-b from-black/80 via-black/50 to-black/90" />
             </div>
 
-          ))}
+            {/* Header */}
+            <header className="relative z-10 flex justify-between items-center p-6">
+                <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 rounded-full bg-white/10 border border-white/10 text-xs font-bold tracking-wider uppercase text-neutral-300">
+                        {job.title}
+                    </span>
+                    <span className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10 border border-red-500/20 text-xs font-bold text-red-400 animate-pulse">
+                        <span className="w-2 h-2 bg-red-500 rounded-full" /> LIVE
+                    </span>
+              </div>
+                <div className="font-mono text-neutral-400">
+                    {Math.floor(timer / 60).toString().padStart(2, '0')}:{(timer % 60).toString().padStart(2, '0')}
+          </div>
+        </header>
 
-        </div>
+            {/* Main Visualizer Area */}
+            <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-8">
+                
+                {/* Status Label */}
+                <div className="h-8 flex items-center justify-center">
+                    {status === 'CONNECTING' && <span className="text-sm text-neutral-500 animate-pulse">CONNECTING TO GEMINI LIVE...</span>}
+                    {status === 'RECONNECTING' && <span className="text-sm text-yellow-500 animate-pulse">CONNECTION LOST. RECONNECTING...</span>}
+                    {status === 'CONNECTED' && isAiSpeaking && <span className="text-sm text-cyan-400 font-bold tracking-widest">INTERVIEWER SPEAKING</span>}
+                    {status === 'CONNECTED' && !isAiSpeaking && <span className="text-sm text-green-400 font-bold tracking-widest">LISTENING...</span>}
+                </div>
+
+                {/* The Canvas Visualizer */}
+                <div className="relative flex items-center justify-center">
+                    <AudioVisualizer 
+                        analyser={isAiSpeaking ? aiAnalyserRef.current : micAnalyserRef.current} 
+                        mode={isAiSpeaking ? 'ai' : (status === 'CONNECTED' ? 'mic' : 'idle')}
+                    />
+      </div>
+
+                {/* Subtitles / Question */}
+                <div className="w-full max-w-3xl text-center space-y-6 min-h-[150px]">
+                    {/* AI Output */}
+                    <h2 className="text-2xl md:text-3xl font-light text-white leading-snug drop-shadow-lg transition-opacity duration-500">
+                        {currentOutputTrans || (transcriptHistory.slice().reverse().find(t => t.speaker === Speaker.AI)?.text)}
+                    </h2>
+
+                    {/* User Live Transcript Notice */}
+                    <p className="text-sm text-neutral-500 italic opacity-80 min-h-[1.5em]">
+                        Ваша транскрипция скрыта для приватности, но система продолжает вас слышать.
+                    </p>
+                </div>
 
       </main>
 
-      <footer className="p-4 border-t border-white/10 flex justify-center">
-
+            {/* Footer Controls */}
+            <footer className="relative z-10 p-8 flex justify-center">
+                {status !== 'DISCONNECTED' ? (
         <button
-
           onClick={handleEndInterview}
-
-          className="bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-6 rounded-full flex items-center space-x-2 transition-transform transform hover:scale-105"
-
+                        className="px-6 py-3 rounded-full bg-neutral-800/80 border border-white/10 hover:bg-red-900/50 hover:border-red-500/50 text-neutral-400 hover:text-red-200 transition-all text-sm font-bold tracking-wider uppercase"
         >
-
-          <StopIcon />
-
-          <span>End Interview</span>
-
+                        End Interview
         </button>
-
+                ) : (
+                     <span className="text-neutral-400 animate-pulse">Processing results...</span>
+                )}
       </footer>
 
-      <canvas ref={canvasRef} className="hidden"></canvas>
-
     </div>
-
   );
-
 };
 
 export default InterviewScreen;

@@ -3,6 +3,7 @@
 export type Stage =
   | "Background"
   | "Core"
+  | "SQL"
   | "DeepDive"
   | "Case"
   | "Debug"
@@ -18,7 +19,10 @@ type RoleKey =
   | "frontend"
   | "devops"
   | "ml_engineer"
-  | "product_manager";
+  | "product_manager"
+  | "sql_specialist" // DBA
+  | "sql_analyst"    // For Analysts
+  | "cybersecurity";
 
 type QuestionEntry = {
   text: string;
@@ -627,6 +631,118 @@ export const QUESTION_BANK: Record<RoleKey, QuestionEntry[]> = {
       text: "Какие продукты вас вдохновляют и почему?",
     },
   ],
+
+  // ==== SQL SPECIALIST / DBA ====
+  sql_specialist: [
+    // Background
+    {
+      stage: "Background",
+      difficulty: 1,
+      text: "Расскажите о своем опыте работы с реляционными базами данных (PostgreSQL, MySQL, Oracle).",
+    },
+    {
+      stage: "Background",
+      difficulty: 2,
+      text: "С какими объемами данных вам приходилось работать? Какую архитектуру БД вы поддерживали?",
+    },
+    
+    // Core
+    {
+      stage: "Core",
+      difficulty: 1,
+      text: "В чем разница между DELETE и TRUNCATE?",
+    },
+    {
+      stage: "Core",
+      difficulty: 2,
+      text: "Объясните разницу между Clustered и Non-Clustered индексами.",
+    },
+    {
+      stage: "Core",
+      difficulty: 2,
+      text: "Что такое нормализация? До какой нормальной формы вы обычно доводите схему и почему?",
+    },
+    {
+      stage: "Core",
+      difficulty: 3,
+      text: "Как работает транзакция? Объясните уровни изоляции транзакций (Read Committed, Repeatable Read, Serializable).",
+    },
+    
+    // SQL (Deep)
+    {
+      stage: "SQL",
+      difficulty: 3,
+      text: "Напишите (устно) запрос с использованием CTE, чтобы найти сотрудников, чья зарплата выше средней по их отделу.",
+    },
+    {
+      stage: "SQL",
+      difficulty: 3,
+      text: "Как бы вы реализовали пагинацию (pagination) для таблицы с миллионами строк, чтобы это работало быстро?",
+    },
+    {
+      stage: "SQL",
+      difficulty: 4,
+      text: "Как работают оконные функции RANK(), DENSE_RANK() и ROW_NUMBER()? В чем их отличие?",
+    },
+    {
+      stage: "SQL",
+      difficulty: 4,
+      text: "У вас есть запрос, который делает Full Table Scan. Как вы будете его оптимизировать? (EXPLAIN ANALYZE, индексы, партиционирование).",
+    },
+    
+    // DeepDive (Internals)
+    {
+      stage: "DeepDive",
+      difficulty: 4,
+      text: "Как устроен B-Tree индекс? Почему для поиска по диапазону он эффективнее Hash-индекса?",
+    },
+    {
+      stage: "DeepDive",
+      difficulty: 4,
+      text: "Что такое MVCC (Multi-Version Concurrency Control) и зачем оно нужно в PostgreSQL/MySQL?",
+    },
+    {
+      stage: "DeepDive",
+      difficulty: 5,
+      text: "Как работает WAL (Write-Ahead Logging)? Почему он гарантирует надежность данных при сбое?",
+    },
+    {
+      stage: "DeepDive",
+      difficulty: 5,
+      text: "Расскажите про шардинг (sharding) и репликацию. Какие стратегии шардирования вы знаете?",
+    },
+    
+    // Case
+    {
+      stage: "Case",
+      difficulty: 3,
+      text: "Спроектируйте схему БД для аналога Twitter: пользователи, твиты, фолловеры. Как оптимизировать ленту новостей?",
+    },
+    {
+      stage: "Case",
+      difficulty: 4,
+      text: "Вам нужно мигрировать таблицу размером 10TB на новую схему без даунтайма. Как вы это сделаете?",
+    },
+    
+    // Debug
+    {
+      stage: "Debug",
+      difficulty: 3,
+      text: "Приложение начало получать Deadlock-и. Как вы будете искать причину и исправлять?",
+    },
+    {
+      stage: "Debug",
+      difficulty: 4,
+      text: "База данных 'встала колом' (CPU 100%). Ваши действия по диагностике и реанимации?",
+    },
+    
+    // WrapUp
+    {
+      stage: "WrapUp",
+      difficulty: 2,
+      text: "Какие современные тренды в базах данных (NewSQL, NoSQL) вам интересны?",
+    },
+  ],
 };
 
 // Маппинг из строки роли в ключ
@@ -664,6 +780,9 @@ function roleToKey(role: string): RoleKey | null {
   if (r.includes("front")) return "frontend";
   if (r.includes("devops") || r.includes("sre")) return "devops";
   if (r.includes("product")) return "product_manager";
+  if (r.includes("sql") && (r.includes("analyst") || r.includes("bi") || r.includes("reporting"))) return "sql_analyst";
+  if (r.includes("sql") || r.includes("database") || r.includes("dba")) return "sql_specialist";
+  if (r.includes("cyber") || r.includes("security") || r.includes("pentest")) return "cybersecurity";
 
   return null;
 }

@@ -25,8 +25,8 @@ export type TurnEvaluation = {
 
 // Счетчик вызовов для контроля частоты LLM
 let turnEvaluationCount = 0;
-const LLM_EVALUATION_INTERVAL = 3; // Вызывать LLM только каждый 3-й раз
-const MIN_ANSWER_LENGTH_FOR_LLM = 50; // Минимальная длина ответа для LLM-оценки
+const LLM_EVALUATION_INTERVAL = 1; // Evaluate EVERY turn for Mercor-grade accuracy
+const MIN_ANSWER_LENGTH_FOR_LLM = 10; // Even short answers should be evaluated by LLM if possible
 
 // Mercor-grade эвристическая оценка с проверкой ключевых слов и полноты
 function heuristicEvaluate(
@@ -48,12 +48,21 @@ function heuristicEvaluate(
     score = 25;
     weaknesses.push("Answer is extremely short and lacks detail.");
   } else {
-    // Базовая оценка за длину
+    // Базовая оценка за длину (но не линейно)
     const wordCount = trimmed.split(/\s+/).length;
-    const lengthScore = Math.min(100, (wordCount / 50) * 100); // Нормализуем на ~50 слов
+    const lengthScore = Math.min(100, (wordCount / 30) * 100); // Насыщение на 30 словах
     
-    score = 30 + Math.round(lengthScore * 0.3); // 30% веса на длину
-    strengths.push("Answer is at least somewhat elaborated.");
+    // Penalize repetition (dumb anti-spam)
+    const uniqueWords = new Set(trimmed.toLowerCase().split(/\s+/)).size;
+    const diversityRatio = uniqueWords / wordCount;
+    
+    if (diversityRatio < 0.4 && wordCount > 20) {
+       score = 20; // Spam detected
+       weaknesses.push("Answer is repetitive and lacks content.");
+    } else {
+       score = 40 + Math.round(lengthScore * 0.2); // Base 40 + up to 20 for length
+       if (wordCount > 10) strengths.push("Answer provided.");
+    }
   }
 
   // Проверка ключевых слов (если предоставлены)
@@ -266,5 +275,103 @@ function extractExpectedKeywords(question: string, role: string): string[] {
 // Сброс счетчика при новом интервью
 export function resetEvaluationCounter() {
   turnEvaluationCount = 0;
+}
+
+export async function generateFinalEvaluation(params: {
+  transcript: { speaker: string; text: string }[];
+  role: string;
+  evaluations: TurnEvaluation[];
+}): Promise<any> {
+  const { transcript, role, evaluations } = params;
+  
+  // Format transcript for LLM
+  const formattedTranscript = transcript
+    .map((t) => `${t.speaker}: ${t.text}`)
+    .join("\n");
+
+  const evaluationsText = evaluations
+    .map((e, i) => `Turn ${i + 1}: Score ${e.score}, Quality ${e.quality}, Notes: ${e.notes}`)
+    .join("\n");
+
+  // 1. Draft Summary
+  console.log("[Evaluator] Generating draft summary...");
+  const draftResult: LLMResult = await safeGenerateJSON({
+    model: PIPELINE_CONFIG.models.summary,
+    systemPrompt: PIPELINE_CONFIG.prompts.finalSummary,
+    userPrompt: `
+ROLE: ${role}
+TRANSCRIPT:
+${formattedTranscript}
+
+EVALUATIONS:
+${evaluationsText}
+`,
+  });
+
+  let finalResult = draftResult.data || {};
+  let llmUsed = draftResult.fromLLM;
+
+  // 2. Refine Pass (if draft succeeded and we have quota)
+  if (draftResult.ok && draftResult.fromLLM) {
+     console.log("[Evaluator] Refining summary...");
+     const refineResult: LLMResult = await safeGenerateJSON({
+        model: PIPELINE_CONFIG.models.summaryRefine, // GPT-4o or similar strong model
+        systemPrompt: PIPELINE_CONFIG.prompts.finalSummaryRefine,
+        userPrompt: `
+ORIGINAL DRAFT:
+${JSON.stringify(draftResult.data)}
+
+TRANSCRIPT:
+${formattedTranscript}
+
+ROLE: ${role}
+`,
+     });
+
+     if (refineResult.ok && refineResult.fromLLM && refineResult.data) {
+        finalResult = refineResult.data;
+     }
+  }
+
+  // Fallback if LLM failed completely
+  if (!finalResult.overallScore) {
+      console.log("[Evaluator] LLM summary failed, using heuristic fallback");
+      const avgScore = evaluations.length > 0 
+        ? Math.round(evaluations.reduce((a, b) => a + b.score, 0) / evaluations.length) 
+        : 0;
+        
+      finalResult = {
+          overallScore: avgScore,
+          communication: avgScore / 10,
+          reasoning: avgScore / 10,
+          domainKnowledge: avgScore / 10,
+          finalVerdict: avgScore > 70 ? "Hire" : "No Hire",
+          strengths: evaluations.flatMap(e => e.strengths).slice(0, 5),
+          areasForImprovement: evaluations.flatMap(e => e.weaknesses).slice(0, 5),
+          summaryText: "AI evaluation was skipped due to technical limits. Based on heuristics, the candidate performed with an average score of " + avgScore,
+      };
+      llmUsed = false;
+  }
+
+  // Check if ANY turn was evaluated by LLM
+  const anyTurnLLM = evaluations.some(e => !e.heuristicOnly);
+  const finalLLMUsed = llmUsed || anyTurnLLM;
+
+  return {
+      ...finalResult,
+      llmUsed: finalLLMUsed,
+      summarySource: finalLLMUsed ? 'llm+heuristics' : 'heuristics-only',
+      // Ensure scores structure matches what UI expects
+      scores: {
+          comms: finalResult.communication || 0,
+          reasoning: finalResult.reasoning || 0,
+          domain: finalResult.domainKnowledge || 0,
+          overall: finalResult.overallScore || 0,
+      },
+      detailedFeedback: finalResult.summaryText,
+      summary: finalResult.summaryText,
+      strengths: finalResult.strengths || [],
+      areasForImprovement: finalResult.areasForImprovement || []
+  };
 }
 

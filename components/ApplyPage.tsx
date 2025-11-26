@@ -1,7 +1,7 @@
+
 import React, { useState } from 'react';
+import { GoogleGenAI, Type } from '@google/genai';
 import { Job, AppRoute, ApplicationData } from '../types';
-import { safeGenerateJSON } from '../services/interviewPipeline/llmClient';
-import { PIPELINE_CONFIG } from '../services/interviewPipeline/pipelineConfig';
 import Button from './Button';
 import Stepper from './Stepper';
 import { useAuth } from './AuthContext';
@@ -16,10 +16,15 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
 
   const [name, setName] = useState(user?.name || "");
   const [email, setEmail] = useState(user?.email || "");
-  const [language, setLanguage] = useState("Russian");
+  // Default to English explicitly to ensure STT works correctly for English speakers
+  const [language, setLanguage] = useState("English"); 
   const [linkedInUrl, setLinkedInUrl] = useState(profileData?.linkedin || "");
   const [githubUrl, setGithubUrl] = useState("");
   const [portfolioUrl, setPortfolioUrl] = useState("");
+  const [kaggleUrl, setKaggleUrl] = useState("");
+  const [leetcodeUrl, setLeetcodeUrl] = useState("");
+  const [tryhackmeUrl, setTryhackmeUrl] = useState("");
+  const [codeforcesUrl, setCodeforcesUrl] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Continue to Device Check");
@@ -46,36 +51,55 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
       linkedInUrl: linkedInUrl || undefined,
       githubUrl: githubUrl || undefined,
       portfolioUrl: portfolioUrl || undefined,
+      kaggleUrl: kaggleUrl || undefined,
+      leetcodeUrl: leetcodeUrl || undefined,
+      tryhackmeUrl: tryhackmeUrl || undefined,
+      codeforcesUrl: codeforcesUrl || undefined,
     };
 
-    if (applicationData.linkedInUrl || applicationData.githubUrl) {
+    if (applicationData.linkedInUrl || applicationData.githubUrl || applicationData.kaggleUrl || applicationData.leetcodeUrl || applicationData.tryhackmeUrl || applicationData.codeforcesUrl) {
       setLoadingMessage("Analyzing profiles…");
       try {
-        const result = await safeGenerateJSON({
-          model: PIPELINE_CONFIG.models.evaluator,
-          systemPrompt: `You are an expert technical recruiter. Always respond with valid JSON only, no additional text.`,
-          userPrompt: `As an expert technical recruiter, analyze the provided professional profile URLs. IMPORTANT: Do not attempt to access these URLs directly. Instead, based on the information present *in the URLs themselves* (like usernames or keywords) and your general knowledge of tech roles, infer a likely professional summary and key skills for this candidate. LinkedIn: ${applicationData.linkedInUrl || 'N/A'}, GitHub: ${applicationData.githubUrl || 'N/A'}. Provide your analysis in a clean JSON format with "profileSummary" (a brief one-paragraph summary) and "parsedSkills" (an array of 5-10 key technical or professional skills).`,
-        });
+        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const prompt = `As an expert technical recruiter, analyze the provided professional profile URLs. IMPORTANT: Do not attempt to access these URLs directly. Instead, based on the information present *in the URLs themselves* (like usernames or keywords) and your general knowledge of tech roles, infer a likely professional summary and key skills for this candidate. 
+        
+        URLs:
+        - LinkedIn: ${applicationData.linkedInUrl || 'N/A'}
+        - GitHub: ${applicationData.githubUrl || 'N/A'}
+        - Kaggle: ${applicationData.kaggleUrl || 'N/A'}
+        - LeetCode: ${applicationData.leetcodeUrl || 'N/A'}
+        - TryHackMe: ${applicationData.tryhackmeUrl || 'N/A'}
+        - CodeForces: ${applicationData.codeforcesUrl || 'N/A'}
+        
+        Provide your analysis in a clean JSON format.`;
 
-        if (result.ok && result.fromLLM && result.data) {
-          applicationData.profileSummary = result.data.profileSummary || "";
-          applicationData.parsedSkills = result.data.parsedSkills || [];
-        } else {
-          // Fallback: используем базовые навыки из URL
-          console.warn("LLM unavailable for profile analysis, using fallback");
-          const skills: string[] = [];
-          if (applicationData.githubUrl) {
-            const githubMatch = applicationData.githubUrl.match(/github\.com\/([^\/]+)/);
-            if (githubMatch) {
-              skills.push("GitHub", "Version Control");
+        const response = await ai.models.generateContent({
+          model: "gemini-2.5-flash",
+          contents: prompt,
+          config: {
+            responseMimeType: "application/json",
+            responseSchema: {
+              type: Type.OBJECT,
+              properties: {
+                profileSummary: { 
+                  type: Type.STRING,
+                  description: "A brief, one-paragraph summary of the candidate's likely professional background and expertise."
+                },
+                parsedSkills: { 
+                  type: Type.ARRAY, 
+                  items: { type: Type.STRING },
+                  description: "A list of 5-10 key technical or professional skills."
+                },
+              },
+              required: ['profileSummary', 'parsedSkills']
             }
           }
-          if (applicationData.linkedInUrl) {
-            skills.push("Professional Networking");
-          }
-          applicationData.parsedSkills = skills;
-          applicationData.profileSummary = "Profile analysis unavailable. Please provide more details in your application.";
-        }
+        });
+        
+        const parsedResult = JSON.parse(response.text.trim());
+        applicationData.profileSummary = parsedResult.profileSummary;
+        applicationData.parsedSkills = parsedResult.parsedSkills;
+        
       } catch (err) {
         console.error("Error parsing social profiles:", err);
         // Do not block submission, just log the error and proceed.
@@ -136,6 +160,28 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
                 <div className="grid gap-1">
                   <label className="text-xs opacity-80">Portfolio/Website URL</label>
                   <input className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3" type="url" value={portfolioUrl} onChange={e => setPortfolioUrl(e.target.value)}/>
+                </div>
+              </div>
+              
+              <div className="grid md:grid-cols-2 gap-4">
+                 <div className="grid gap-1">
+                  <label className="text-xs opacity-80">Kaggle Profile URL</label>
+                  <input className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3" type="url" placeholder="https://kaggle.com/..." value={kaggleUrl} onChange={e => setKaggleUrl(e.target.value)}/>
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-xs opacity-80">LeetCode Profile URL</label>
+                  <input className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3" type="url" placeholder="https://leetcode.com/..." value={leetcodeUrl} onChange={e => setLeetcodeUrl(e.target.value)}/>
+                </div>
+              </div>
+
+               <div className="grid md:grid-cols-2 gap-4">
+                 <div className="grid gap-1">
+                  <label className="text-xs opacity-80">TryHackMe Profile URL</label>
+                  <input className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3" type="url" placeholder="https://tryhackme.com/p/..." value={tryhackmeUrl} onChange={e => setTryhackmeUrl(e.target.value)}/>
+                </div>
+                <div className="grid gap-1">
+                  <label className="text-xs opacity-80">CodeForces Profile URL</label>
+                  <input className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3" type="url" placeholder="https://codeforces.com/profile/..." value={codeforcesUrl} onChange={e => setCodeforcesUrl(e.target.value)}/>
                 </div>
               </div>
           </section>

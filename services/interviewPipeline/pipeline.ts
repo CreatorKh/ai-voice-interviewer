@@ -2,9 +2,24 @@
 
 import { QuestionPlan, PipelineState, TurnMetrics, AntiCheatSignal, QuestionType, RefinedQuestion, AnswerEvaluation } from './types';
 import { getQuestionForRoleAndStage, Stage } from './questionBank';
-import { evaluateTurn, resetEvaluationCounter } from './evaluator';
+import { evaluateTurn, resetEvaluationCounter, generateFinalEvaluation, TurnEvaluation } from './evaluator';
 import { PIPELINE_CONFIG } from './pipelineConfig';
 import { getLLMUsage } from './llmClient';
+import { runAntiCheat } from './antiCheat';
+
+export interface InterviewState {
+  role: string;
+  stage: string;
+  difficulty: number;
+  skillProfile: any;
+  transcript: { q: string; a: string }[];
+  usedQuestions: string[];
+  finished: boolean;
+  hasGreeted: boolean;
+  consecutiveSilence: number;
+  language?: string;
+  externalContext?: string;
+}
 
 interface EvaluationResult {
   score: number; // 0–100 по этому ответу
@@ -729,5 +744,63 @@ export class InterviewPipeline {
       },
     };
   }
+}
+
+export async function finalizeInterview(state: InterviewState): Promise<{ summary: any; antiCheat: any }> {
+  console.log("[Pipeline] Finalizing interview...");
+
+  // 1. Prepare data for evaluation
+  // We need to convert state.transcript (q/a pairs) into flat TranscriptEntry[]-like structure
+  const flatTranscript = state.transcript.flatMap(t => [
+    { speaker: 'Interviewer', text: t.q },
+    { speaker: 'Candidate', text: t.a }
+  ]).filter(t => t.text);
+
+  // We need to re-evaluate everything to get per-turn scores for the final summary
+  // (Since InterviewScreen mocks the state, we might not have proper turn evaluations stored there)
+  // In a real scenario, we should pass the evaluations. For now, we'll re-run or mock them.
+  // Actually, we can just do a quick heuristic pass on them if they weren't stored.
+  
+  const evaluations: TurnEvaluation[] = [];
+  
+  for (const item of state.transcript) {
+      if (item.a) {
+          // Quick heuristic eval for summary context
+          // We use evaluateTurn but force it to be heuristic if needed, 
+          // but here we actually want good data for the summary.
+          // To save time/quota, we might just use heuristicEvaluate directly from evaluator if exported,
+          // but evaluateTurn handles logic.
+          const evalResult = await evaluateTurn({
+              role: state.role,
+              question: item.q,
+              answer: item.a,
+              transcriptSoFar: "", // Not needed for simple heuristic
+              turnIndex: 1 // Force heuristic if interval logic applies, or 0 to force LLM? 
+              // Let's rely on default behavior.
+          });
+          evaluations.push(evalResult);
+      }
+  }
+
+  // 2. Generate Summary
+  const summary = await generateFinalEvaluation({
+      transcript: flatTranscript,
+      role: state.role,
+      evaluations
+  });
+
+  // 3. Run Anti-Cheat
+  // Calculate basic heuristic stats
+  const avgScore = evaluations.reduce((sum, e) => sum + e.score, 0) / (evaluations.length || 1);
+  
+  const antiCheat = await runAntiCheat({
+      transcript: flatTranscript.map(t => `${t.speaker}: ${t.text}`).join('\n'),
+      heuristicScores: {
+          avgScore,
+          turns: evaluations.length
+      }
+  });
+
+  return { summary, antiCheat };
 }
 

@@ -1,14 +1,19 @@
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
-import { GoogleGenerativeAI } from '@google/generative-ai';
-import { TEXT_MODEL_ID } from './config/models';
-import { generateFinalEvaluation } from './evaluation/evaluator';
-import { PipelineState } from './services/interviewPipeline/types';
 
-import { AppRoute, Job, InterviewResult, TranscriptEntry, Evaluation, ApplicationData, Contract } from './types';
-import { MOCK_JOBS, EVALUATION_PROMPT_TEMPLATE } from './constants';
 
-import { AuthProvider, useAuth } from './components/AuthContext';
-import Shell from './components/Shell';
+
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { GoogleGenAI, Type } from '@google/genai';
+
+// Auth and Layout
+import { useAuth } from './components/AuthContext';
+import LoggedInLayout from './components/LoggedInLayout';
+import LoginModal from './components/LoginModal';
+import OnboardingModal from './components/onboarding/OnboardingModal';
+import SearchModal from './components/SearchModal';
+
+// Pages
+import HomePage from './components/HomePage';
 import ExplorePage from './components/ExplorePage';
 import JobPage from './components/JobPage';
 import ApplyPage from './components/ApplyPage';
@@ -17,325 +22,211 @@ import InterviewScreen from './components/InterviewScreen';
 import InterviewResultPage from './components/InterviewResultPage';
 import CandidateDashboardPage from './components/CandidateDashboardPage';
 import HirerDashboardPage from './components/HirerDashboardPage';
-import OnboardingModal from './components/onboarding/OnboardingModal';
-import LoginModal from './components/LoginModal';
-import LoggedInLayout from './components/LoggedInLayout';
 import ProfilePage from './components/ProfilePage';
-import DomainExpertPage from './components/DomainExpertPage';
-import HomePage from './components/HomePage';
-import ReferralsPage from './components/ReferralsPage';
 import EarningsPage from './components/EarningsPage';
-import SearchModal from './components/SearchModal';
+import ReferralsPage from './components/ReferralsPage';
+import DomainExpertPage from './components/DomainExpertPage';
+import SettingsPage from './components/SettingsPage';
+import AdminPage from './components/AdminPage';
 
-const PublicContent: React.FC<{
-  route: AppRoute;
-  setRoute: (r: AppRoute) => void;
-  jobs: Job[];
-  currentJob: Job | null;
-  interviewResults: InterviewResult[];
-  isEvaluating: boolean;
-  handleInterviewComplete: (job: Job, transcript: TranscriptEntry[], recordingUrl: string, applicationData: ApplicationData) => void;
-  handleApplicationSubmit: (job: Job, transcript: TranscriptEntry[], recordingUrl: string, applicationData: ApplicationData, pipelineState?: PipelineState) => Promise<void>;
-  contracts: Contract[];
-  handleHireCandidate: (resultIndex: number, hourlyRate: number) => void;
-  handleFundEscrow: (contractId: number, amount: number) => void;
-  handleReleasePayment: (contractId: number) => void;
-}> = ({ route, setRoute, jobs, currentJob, interviewResults, isEvaluating, handleInterviewComplete, handleApplicationSubmit, contracts, handleHireCandidate, handleFundEscrow, handleReleasePayment }) => {
+
+// Data and Types
+import { JOBS, SYSTEM_PROMPT_TEMPLATE } from './constants';
+import { AppRoute, Job, TranscriptEntry, InterviewResult, ApplicationData, Contract, AdminSettings, AntiCheatReport } from './types';
+
+
+const App: React.FC = () => {
+  const { user, isLoginChoiceOpen, closeLoginChoice, isOnboardingOpen, openLoginChoice } = useAuth();
+  
+  const [route, setRoute] = useState<AppRoute>({ name: 'home' });
+  const [jobs] = useState<Job[]>(JOBS);
+  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([]);
+  const [contracts, setContracts] = useState<Contract[]>([]);
+  const [isLoadingResult, setIsLoadingResult] = useState(false);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
+    const defaultSettings: AdminSettings = {
+        interviewer: {
+            provider: 'gemini',
+            systemPrompt: SYSTEM_PROMPT_TEMPLATE,
+        },
+        evaluation: {
+            provider: 'gemini',
+            openAI: {
+                apiKey: '',
+                model: 'gpt-4o',
+            },
+        },
+    };
+    try {
+        const savedSettings = localStorage.getItem('adminSettings');
+        if (!savedSettings) return defaultSettings;
+        
+        const parsed = JSON.parse(savedSettings);
+        // Migration logic for old structure
+        if (parsed.evaluationProvider) {
+            return {
+                interviewer: {
+                    provider: 'gemini',
+                    systemPrompt: parsed.interview?.systemPrompt || SYSTEM_PROMPT_TEMPLATE,
+                },
+                evaluation: {
+                    provider: parsed.evaluationProvider,
+                    openAI: {
+                        apiKey: parsed.openAI?.apiKey || '',
+                        model: parsed.openAI?.evaluationModel || 'gpt-4o',
+                    },
+                },
+            };
+        }
+        // If it's already the new structure
+        if (parsed.evaluation && parsed.interviewer) {
+            return parsed;
+        }
+        return defaultSettings;
+    } catch (error) {
+        console.error("Could not parse admin settings from localStorage", error);
+        return defaultSettings;
+    }
+  });
+
+  useEffect(() => {
+    if (!user) {
+        setRoute({ name: 'explore' }); // Default page for logged-out users
+        openLoginChoice();
+    } else {
+        setRoute({ name: 'home' });
+    }
+  }, [user, openLoginChoice]);
+
+  const handleEndInterview = useCallback(async (
+    transcript: TranscriptEntry[],
+    recordingUrl: string,
+    evaluation: any, // The summary object from pipeline
+    antiCheatReport: AntiCheatReport
+  ) => {
+    if (route.name !== 'interviewLive') return;
+  
+    const { jobId, applicationData } = route;
+    const job = jobs.find(j => j.id === jobId);
+    if (!job) return;
+  
+    // The result is already generated by the pipeline, so we just map it and display it.
+    // No more loading state needed here.
+    setRoute({ name: 'interviewResult', resultIndex: interviewResults.length });
+    setIsLoadingResult(false);
+  
+    const mappedEvaluation = {
+      scores: {
+        comms: evaluation.communication || 0,
+        reasoning: evaluation.reasoning || 0,
+        domain: evaluation.domainKnowledge || 0,
+        overall: evaluation.overallScore || 0,
+      },
+      summary: evaluation.summaryText || "Evaluation summary not available.",
+      // A simple way to get a short summary. Could be improved.
+      shortSummary: evaluation.finalVerdict || evaluation.summaryText?.split('.')[0] || "No verdict.",
+      detailedFeedback: evaluation.summaryText || "Detailed feedback not available.",
+      strengths: evaluation.strengths || [],
+      areasForImprovement: evaluation.areasForImprovement || [],
+    };
+  
+    const newResult: InterviewResult = {
+      job,
+      date: new Date().toISOString(),
+      application: applicationData,
+      evaluation: mappedEvaluation,
+      transcript,
+      recordingUrl,
+      antiCheatReport,
+    };
+  
+    setInterviewResults(prev => [...prev, newResult]);
+  
+  }, [route, jobs, interviewResults.length]);
+
+  const handleHire = (resultIndex: number, hourlyRate: number) => {
+    if (contracts.some(c => c.resultIndex === resultIndex)) return;
+    const newContract: Contract = {
+      id: contracts.length + 1,
+      resultIndex,
+      status: 'Awaiting Funding',
+      hourlyRate,
+      escrowAmount: 0,
+      hoursLogged: 0,
+    };
+    setContracts(prev => [...prev, newContract]);
+  };
+  
+  const handleFund = (contractId: number, amount: number) => {
+    setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: 'Active', escrowAmount: c.escrowAmount + amount } : c));
+  };
+  
+  const handleRelease = (contractId: number) => {
+    setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: 'Completed', escrowAmount: 0 } : c));
+  };
+
+  const handleDomainExpertComplete = (expertData: any) => {
+    console.log("Domain Expert data submitted:", expertData);
+    alert("Thank you for your submission! We will review your information and get back to you.");
+    setRoute({ name: 'home' }); 
+  };
+  
+  const handleSaveAdminSettings = (settings: AdminSettings) => {
+    try {
+        localStorage.setItem('adminSettings', JSON.stringify(settings));
+        setAdminSettings(settings);
+        alert('Admin settings saved successfully!');
+        setRoute({ name: 'home' });
+    } catch (error) {
+        console.error("Could not save admin settings to localStorage", error);
+        alert('Failed to save settings.');
+    }
+  };
 
   const renderContent = () => {
     switch (route.name) {
-      case 'explore':
-        return <ExplorePage jobs={jobs} setRoute={setRoute} />;
-      case 'job':
-        return currentJob ? <JobPage job={currentJob} setRoute={setRoute} /> : <ExplorePage jobs={jobs} setRoute={setRoute} />;
-      case 'apply':
-        return currentJob ? <ApplyPage job={currentJob} setRoute={setRoute} /> : <ExplorePage jobs={jobs} setRoute={setRoute} />;
-      case 'prep':
-        return currentJob ? <DeviceCheckPage job={currentJob} setRoute={setRoute} applicationData={route.applicationData} /> : <ExplorePage jobs={jobs} setRoute={setRoute} />;
-      case 'interviewLive':
-        return currentJob ? <InterviewScreen job={currentJob} onEnd={(transcript, url, pipelineState) => handleInterviewComplete(currentJob, transcript, url, route.applicationData, pipelineState)} applicationData={route.applicationData} /> : <ExplorePage jobs={jobs} setRoute={setRoute} />;
-      case 'domainExpert':
-          const jobForExpert = jobs.find(j => j.id === route.jobId);
-          if (!jobForExpert) return <ExplorePage jobs={jobs} setRoute={setRoute} />;
-          return <DomainExpertPage
-            job={jobForExpert}
-            applicationData={route.applicationData}
-            setRoute={setRoute}
-            onComplete={(expertData) => {
-              const finalApplicationData = { ...route.applicationData, ...expertData };
-              handleApplicationSubmit(jobForExpert, route.transcript, route.recordingUrl, finalApplicationData, route.pipelineState);
-            }}
-          />;
-      case 'interviewResult':
-        const result = interviewResults[route.resultIndex];
-        const isLoading = isEvaluating || (result && result.evaluation === null);
-        return <InterviewResultPage result={result} isLoading={isLoading} setRoute={setRoute} />;
-      case 'candidateDashboard': // Should be in logged in view, but keeping for now
-        return <CandidateDashboardPage results={interviewResults} contracts={contracts} setRoute={setRoute} />;
-      case 'hirerDashboard': // Should be in logged in view, but keeping for now
-        return <HirerDashboardPage results={interviewResults} contracts={contracts} setRoute={setRoute} onHire={handleHireCandidate} onFund={handleFundEscrow} onRelease={handleReleasePayment} />;
-      default:
-        return <ExplorePage jobs={jobs} setRoute={setRoute} />;
+      case 'home': return <HomePage setRoute={setRoute} />;
+      case 'explore': return <ExplorePage jobs={jobs} setRoute={setRoute} />;
+      case 'job': return <JobPage job={jobs.find(j => j.id === route.id)!} setRoute={setRoute} />;
+      case 'apply': return <ApplyPage job={jobs.find(j => j.id === route.jobId)!} setRoute={setRoute} />;
+      case 'prep': return <DeviceCheckPage job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} setRoute={setRoute} />;
+      case 'interviewLive': return <InterviewScreen job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} onEnd={handleEndInterview} />;
+      case 'interviewResult': return <InterviewResultPage result={interviewResults[route.resultIndex]} isLoading={isLoadingResult} setRoute={setRoute} />;
+      case 'candidateDashboard': return <CandidateDashboardPage results={interviewResults} contracts={contracts} setRoute={setRoute} />;
+      case 'hirerDashboard': return <HirerDashboardPage results={interviewResults} contracts={contracts} onHire={handleHire} onFund={handleFund} onRelease={handleRelease} setRoute={setRoute} />;
+      case 'profile': return <ProfilePage />;
+      case 'earnings': return <EarningsPage setRoute={setRoute} />;
+      case 'referrals': return <ReferralsPage setRoute={setRoute} />;
+      case 'domainExpert': return <DomainExpertPage job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} onComplete={handleDomainExpertComplete} setRoute={setRoute} />;
+      case 'settings': return <SettingsPage />;
+      case 'admin': return <AdminPage settings={adminSettings} onSave={handleSaveAdminSettings} />;
+      default: return <div>Not Found</div>;
     }
   };
 
-  return (
-    <div className="min-h-dvh">
-      <Shell setRoute={setRoute} />
-      <main className="mx-auto max-w-6xl px-4 py-8">
-        {renderContent()}
-      </main>
-      <footer className="mx-auto max-w-6xl px-4 py-10 text-center text-xs opacity-60">
-        © {new Date().getFullYear()} — AI Interview Platform Demo
-      </footer>
-    </div>
-  );
-};
-
-
-const AppContent: React.FC = () => {
-  const [route, setRoute] = useState<AppRoute>({ name: 'explore' });
-  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([]);
-  const [contracts, setContracts] = useState<Contract[]>([]);
-  const [isEvaluating, setIsEvaluating] = useState(false);
-  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  
-  const { user, isOnboardingOpen, closeOnboarding, isLoginChoiceOpen, closeLoginChoice } = useAuth();
-
-  useEffect(() => {
-    if (user && route.name === 'explore') {
-      setRoute({ name: 'home' });
-    }
-  }, [user, route.name]);
-
-  const jobs = useMemo(() => MOCK_JOBS, []);
-
-  const currentJob = useMemo(() => {
-    if (route.name === 'job' || route.name === 'apply' || route.name === 'prep' || route.name === 'interviewLive') {
-      const jobId = 'jobId' in route ? route.jobId : ('id' in route ? route.id : null);
-      return jobs.find(j => j.id === jobId) || null;
-    }
-    return null;
-  }, [route, jobs]);
-  
-  // Convert FinalEvaluation to legacy Evaluation format for compatibility
-  const convertToLegacyEvaluation = (finalEval: any): Evaluation => {
-    const avgScore = finalEval.turnEvaluations.length > 0
-      ? Math.round(finalEval.turnEvaluations.reduce((sum: number, t: any) => sum + t.score, 0) / finalEval.turnEvaluations.length)
-      : finalEval.overallScore;
-
-    const allStrengths = finalEval.turnEvaluations.flatMap((t: any) => t.strengths);
-    const allWeaknesses = finalEval.turnEvaluations.flatMap((t: any) => t.weaknesses);
-
-    // Calculate domain score from skills
-    const domainScore = finalEval.skills.length > 0
-      ? Math.round(finalEval.skills.reduce((sum: number, s: any) => sum + s.score, 0) / finalEval.skills.length)
-      : avgScore;
-
-    return {
-      shortSummary: finalEval.summaryForRecruiter.split('.')[0] || 'Interview completed.',
-      summary: finalEval.summaryForRecruiter,
-      strengths: [...new Set(allStrengths)].slice(0, 5),
-      areasForImprovement: [...new Set(allWeaknesses)].slice(0, 3),
-      detailedFeedback: finalEval.summaryForRecruiter + 
-        (finalEval.antiCheat.overallRisk !== 'low' 
-          ? `\n\nAnti-cheat risk: ${finalEval.antiCheat.overallRisk}. ${finalEval.antiCheat.commentForRecruiter}`
-          : ''),
-      scores: {
-        comms: avgScore, // Communication score
-        reasoning: avgScore, // Problem solving
-        domain: domainScore, // Technical skills
-        overall: finalEval.overallScore,
-      },
-    };
-  };
-
-  const handleApplicationSubmit = useCallback(async (job: Job, transcript: TranscriptEntry[], recordingUrl: string, applicationData: ApplicationData, pipelineState?: PipelineState) => {
-    setIsEvaluating(true);
-    const result: InterviewResult = {
-      job,
-      date: new Date().toISOString(),
-      transcript,
-      recordingUrl,
-      evaluation: null,
-      application: applicationData,
-    };
-    
-    const newResultIndex = interviewResults.length;
-    setInterviewResults(prev => [...prev, result]);
-    
-    setRoute({ name: 'interviewResult', resultIndex: newResultIndex });
-
-    try {
-      // Use new powerful evaluation with pipeline state if available
-      let evaluation: Evaluation;
-      
-      // Use generateFinalEvaluation (single LLM call, with pipeline state if available)
-      const finalEvaluation = await generateFinalEvaluation(
-        transcript,
-        recordingUrl,
-        job,
-        applicationData,
-        pipelineState // Pass pipeline state for better evaluation
-      );
-      
-      // Convert to legacy format for compatibility with existing UI
-      evaluation = convertToLegacyEvaluation(finalEvaluation);
-      
-      setInterviewResults(prev => {
-        const updated = [...prev];
-        if(updated[newResultIndex]) {
-          updated[newResultIndex] = { ...updated[newResultIndex], evaluation };
-        }
-        return updated;
-      });
-    } catch (error) {
-      console.error('Error generating evaluation:', error);
-      // Set a fallback evaluation
-      const fallbackEvaluation: Evaluation = {
-        shortSummary: 'Evaluation unavailable',
-        summary: 'An error occurred while generating the evaluation. Please review the transcript manually.',
-        strengths: [],
-        areasForImprovement: [],
-        detailedFeedback: 'Evaluation generation failed.',
-        scores: {
-          comms: 0,
-          reasoning: 0,
-          domain: 0,
-          overall: 0,
-        },
-      };
-      setInterviewResults(prev => {
-        const updated = [...prev];
-        if(updated[newResultIndex]) {
-          updated[newResultIndex] = { ...updated[newResultIndex], evaluation: fallbackEvaluation };
-        }
-        return updated;
-      });
-    } finally {
-      setIsEvaluating(false);
-    }
-  }, [interviewResults]);
-
-  const handleInterviewComplete = useCallback((job: Job, transcript: TranscriptEntry[], recordingUrl: string, applicationData: ApplicationData, pipelineState?: PipelineState) => {
-    setRoute({
-      name: 'domainExpert',
-      jobId: job.id,
-      applicationData,
-      transcript,
-      recordingUrl,
-      pipelineState, // Pass pipeline state to domain expert page
-    });
-  }, []);
-
-  const handleHireCandidate = useCallback((resultIndex: number, hourlyRate: number) => {
-    if (contracts.some(c => c.resultIndex === resultIndex)) return;
-    const newContract: Contract = {
-      id: resultIndex,
-      resultIndex,
-      hourlyRate,
-      hoursLogged: 0,
-      escrowAmount: 0,
-      status: 'Awaiting Funding',
-    };
-    setContracts(prev => [...prev, newContract]);
-  }, [contracts]);
-
-  const handleFundEscrow = useCallback((contractId: number, amount: number) => {
-    setContracts(prev => prev.map(c => 
-      c.id === contractId && c.status === 'Awaiting Funding'
-        ? { ...c, escrowAmount: c.escrowAmount + amount, status: 'Active', hoursLogged: 12.5 }
-        : c
-    ));
-  }, []);
-  
-  const handleReleasePayment = useCallback((contractId: number) => {
-    setContracts(prev => prev.map(c => 
-      c.id === contractId && c.status === 'Active'
-        ? { ...c, escrowAmount: 0, hoursLogged: 0, status: 'Completed' }
-        : c
-    ));
-  }, []);
-
-  const renderLoggedInContent = () => {
-    switch (route.name) {
-      case 'home':
-        return <HomePage setRoute={setRoute} />;
-      case 'referrals':
-        return <ReferralsPage setRoute={setRoute} />;
-      case 'earnings':
-        return <EarningsPage setRoute={setRoute} />;
-      case 'explore':
-        return <ExplorePage jobs={jobs} setRoute={setRoute} />;
-      case 'profile':
-        return <ProfilePage />;
-      case 'job':
-        return currentJob ? <JobPage job={currentJob} setRoute={setRoute} /> : <HomePage setRoute={setRoute} />;
-      case 'apply':
-        return currentJob ? <ApplyPage job={currentJob} setRoute={setRoute} /> : <HomePage setRoute={setRoute} />;
-       case 'prep':
-        return currentJob ? <DeviceCheckPage job={currentJob} setRoute={setRoute} applicationData={route.applicationData} /> : <HomePage setRoute={setRoute} />;
-      case 'interviewLive':
-        return currentJob ? <InterviewScreen job={currentJob} onEnd={(transcript, url) => handleInterviewComplete(currentJob, transcript, url, route.applicationData)} applicationData={route.applicationData} /> : <HomePage setRoute={setRoute} />;
-      case 'domainExpert':
-          const jobForExpert = jobs.find(j => j.id === route.jobId);
-          if (!jobForExpert) return <HomePage setRoute={setRoute} />;
-          return <DomainExpertPage
-            job={jobForExpert}
-            applicationData={route.applicationData}
-            setRoute={setRoute}
-            onComplete={(expertData) => {
-              const finalApplicationData = { ...route.applicationData, ...expertData };
-              handleApplicationSubmit(jobForExpert, route.transcript, route.recordingUrl, finalApplicationData, route.pipelineState);
-            }}
-          />;
-       case 'interviewResult':
-         const result = interviewResults[route.resultIndex];
-         const isLoading = isEvaluating || (result && result.evaluation === null);
-         return <InterviewResultPage result={result} isLoading={isLoading} setRoute={setRoute} />;
-      default:
-        return <HomePage setRoute={setRoute} />;
-    }
-  };
+  if (!user) {
+    return (
+        <div className="bg-neutral-950 text-neutral-100 font-sans">
+            <main className="p-4 sm:p-6 lg:p-8">
+                <div className="mx-auto max-w-6xl">
+                    <ExplorePage jobs={jobs} setRoute={setRoute} />
+                </div>
+            </main>
+            <LoginModal isOpen={isLoginChoiceOpen} onClose={closeLoginChoice} />
+            <OnboardingModal isOpen={isOnboardingOpen} onClose={closeLoginChoice} />
+        </div>
+    );
+  }
 
   return (
     <>
-      {user ? (
-        <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>
-            {renderLoggedInContent()}
-        </LoggedInLayout>
-      ) : (
-        <PublicContent
-          route={route}
-          setRoute={setRoute}
-          jobs={jobs}
-          currentJob={currentJob}
-          interviewResults={interviewResults}
-          isEvaluating={isEvaluating}
-          handleInterviewComplete={handleInterviewComplete}
-          handleApplicationSubmit={handleApplicationSubmit}
-          contracts={contracts}
-          handleHireCandidate={handleHireCandidate}
-          handleFundEscrow={handleFundEscrow}
-          handleReleasePayment={handleReleasePayment}
-        />
-      )}
-      <LoginModal isOpen={isLoginChoiceOpen} onClose={closeLoginChoice} />
-      <OnboardingModal isOpen={isOnboardingOpen} onClose={closeOnboarding} />
-      <SearchModal 
-        isOpen={isSearchModalOpen}
-        onClose={() => setIsSearchModalOpen(false)}
-        jobs={jobs}
-        setRoute={setRoute}
-      />
+      <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>
+        {renderContent()}
+      </LoggedInLayout>
+      <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} jobs={jobs} setRoute={setRoute} />
     </>
   );
 };
-
-const App: React.FC = () => (
-  <AuthProvider>
-    <AppContent />
-  </AuthProvider>
-);
 
 export default App;
