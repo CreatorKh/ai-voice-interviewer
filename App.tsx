@@ -26,11 +26,15 @@ import ReferralsPage from './components/ReferralsPage';
 import DomainExpertPage from './components/DomainExpertPage';
 import SettingsPage from './components/SettingsPage';
 import AdminPage from './components/AdminPage';
+// One Interview Model
+import CandidateHomePage from './components/CandidateHomePage';
+import UniversalInterviewPage from './components/UniversalInterviewPage';
+import TalentPoolPage from './components/TalentPoolPage';
 
 
 // Data and Types
 import { JOBS, SYSTEM_PROMPT_TEMPLATE } from './constants';
-import { AppRoute, Job, TranscriptEntry, InterviewResult, ApplicationData, Contract, AdminSettings, AntiCheatReport } from './types';
+import { AppRoute, Job, TranscriptEntry, InterviewResult, ApplicationData, Contract, AdminSettings, AntiCheatReport, UniversalProfile, JobMatch } from './types';
 
 
 const App: React.FC = () => {
@@ -56,6 +60,49 @@ const App: React.FC = () => {
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+  
+  // One Interview Model state
+  const [universalProfile, setUniversalProfile] = useState<UniversalProfile | null>(() => {
+    const saved = localStorage.getItem('universalProfile');
+    try {
+      return saved ? JSON.parse(saved) : null;
+    } catch (e) {
+      return null;
+    }
+  });
+  
+  const [jobMatches, setJobMatches] = useState<JobMatch[]>(() => {
+    const saved = localStorage.getItem('jobMatches');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  
+  const [talentPool, setTalentPool] = useState<UniversalProfile[]>(() => {
+    const saved = localStorage.getItem('talentPool');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  
+  // Persist One Interview Model data
+  useEffect(() => {
+    if (universalProfile) {
+      localStorage.setItem('universalProfile', JSON.stringify(universalProfile));
+    }
+  }, [universalProfile]);
+  
+  useEffect(() => {
+    localStorage.setItem('jobMatches', JSON.stringify(jobMatches));
+  }, [jobMatches]);
+  
+  useEffect(() => {
+    localStorage.setItem('talentPool', JSON.stringify(talentPool));
+  }, [talentPool]);
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
     const defaultSettings: AdminSettings = {
         interviewer: {
@@ -113,6 +160,78 @@ const App: React.FC = () => {
     }
   }, [user, route.name, openLoginChoice]);
 
+  // Create universal profile from interview result
+  const createUniversalProfile = useCallback((result: InterviewResult) => {
+    const profile: UniversalProfile = {
+      id: `profile-${Date.now()}`,
+      candidateId: user?.email || 'unknown',
+      name: result.application.name,
+      email: result.application.email,
+      linkedIn: result.application.linkedInUrl,
+      github: result.application.githubUrl,
+      portfolio: result.application.portfolioUrl,
+      
+      interviewDate: result.date,
+      interviewLanguage: result.application.language,
+      recordingUrl: result.recordingUrl,
+      transcript: result.transcript,
+      
+      scores: {
+        communication: result.evaluation?.scores?.comms || 0,
+        problemSolving: result.evaluation?.scores?.reasoning || 0,
+        technicalDepth: result.evaluation?.scores?.domain || 0,
+        adaptability: Math.round(((result.evaluation?.scores?.comms || 0) + (result.evaluation?.scores?.reasoning || 0)) / 2),
+        professionalism: Math.round((result.evaluation?.scores?.overall || 0) * 0.9),
+        overall: result.evaluation?.scores?.overall || 0,
+      },
+      
+      detectedSkills: (result.application.parsedSkills || []).map(skill => ({
+        skill,
+        confidence: 70 + Math.random() * 30,
+        category: 'software_engineering' as const,
+      })),
+      
+      assessedLevel: result.level || 'middle',
+      
+      summary: result.evaluation?.summary || '',
+      strengths: result.evaluation?.strengths || [],
+      areasForImprovement: result.evaluation?.areasForImprovement || [],
+      
+      antiCheatReport: result.antiCheatReport,
+      
+      preferredRoles: [result.job.title],
+      availability: 'immediately',
+      workType: ['remote'],
+      
+      status: 'verified',
+      verifiedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+    
+    setUniversalProfile(profile);
+    
+    // Add to talent pool for hirers
+    setTalentPool(prev => [...prev, profile]);
+    
+    // Generate job matches
+    const matches: JobMatch[] = jobs.map(job => ({
+      jobId: job.id,
+      jobTitle: job.title,
+      companyName: 'Wind AI',
+      matchScore: Math.round(50 + Math.random() * 50),
+      matchReasons: ['Навыки соответствуют', 'Уровень подходит'],
+      salaryMatch: true,
+      levelMatch: true,
+      status: 'new' as const,
+      matchedAt: new Date().toISOString(),
+    })).sort((a, b) => b.matchScore - a.matchScore);
+    
+    setJobMatches(matches);
+    
+    return profile;
+  }, [user, jobs]);
+
   const handleEndInterview = useCallback(async (
     transcript: TranscriptEntry[],
     recordingUrl: string,
@@ -156,8 +275,13 @@ const App: React.FC = () => {
     };
   
     setInterviewResults(prev => [...prev, newResult]);
+    
+    // If this is a universal interview (job id 999), create universal profile
+    if (jobId === 999 || !universalProfile) {
+      createUniversalProfile(newResult);
+    }
   
-  }, [route, jobs, interviewResults.length]);
+  }, [route, jobs, interviewResults.length, universalProfile, createUniversalProfile]);
 
   const handleHire = (resultIndex: number, hourlyRate: number) => {
     if (contracts.some(c => c.resultIndex === resultIndex)) return;
@@ -197,11 +321,36 @@ const App: React.FC = () => {
         alert('Failed to save settings.');
     }
   };
+  
+  // Handle universal interview start
+  const handleStartUniversalInterview = (applicationData: ApplicationData) => {
+    // Use a generic "Universal Interview" job
+    const universalJob: Job = {
+      id: 999,
+      title: 'Universal Assessment',
+      contract_type: 'Assessment',
+      description: 'Universal skills assessment interview',
+      currency: 'USD',
+      hired_this_month: 0,
+      posted_days_ago: 0,
+    };
+    
+    setRoute({ 
+      name: 'interviewLive', 
+      jobId: universalJob.id, 
+      applicationData 
+    });
+  };
 
   const renderContent = () => {
     // Hirers have a different home page
     if (userRole === 'hirer' && route.name === 'home') {
       return <HirerDashboardPage results={interviewResults} contracts={contracts} onHire={handleHire} onFund={handleFund} onRelease={handleRelease} setRoute={setRoute} />;
+    }
+    
+    // Candidates see CandidateHomePage with One Interview model
+    if (userRole === 'candidate' && route.name === 'home') {
+      return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} />;
     }
     
     switch (route.name) {
@@ -210,7 +359,18 @@ const App: React.FC = () => {
       case 'job': return <JobPage job={jobs.find(j => j.id === route.id)!} setRoute={setRoute} />;
       case 'apply': return <ApplyPage job={jobs.find(j => j.id === route.jobId)!} setRoute={setRoute} />;
       case 'prep': return <DeviceCheckPage job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} setRoute={setRoute} />;
-      case 'interviewLive': return <InterviewScreen job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} onEnd={handleEndInterview} />;
+      case 'interviewLive': {
+        const job = jobs.find(j => j.id === route.jobId) || {
+          id: 999,
+          title: 'Universal Assessment',
+          contract_type: 'Assessment',
+          description: 'Universal skills assessment interview',
+          currency: 'USD',
+          hired_this_month: 0,
+          posted_days_ago: 0,
+        };
+        return <InterviewScreen job={job} applicationData={route.applicationData} onEnd={handleEndInterview} />;
+      }
       case 'interviewResult': return <InterviewResultPage result={interviewResults[route.resultIndex]} isLoading={isLoadingResult} setRoute={setRoute} />;
       case 'candidateDashboard': return <CandidateDashboardPage results={interviewResults} contracts={contracts} setRoute={setRoute} />;
       case 'hirerDashboard': return <HirerDashboardPage results={interviewResults} contracts={contracts} onHire={handleHire} onFund={handleFund} onRelease={handleRelease} setRoute={setRoute} />;
@@ -221,6 +381,10 @@ const App: React.FC = () => {
       case 'domainExpert': return <DomainExpertPage job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} onComplete={handleDomainExpertComplete} setRoute={setRoute} />;
       case 'settings': return <SettingsPage />;
       case 'admin': return <AdminPage settings={adminSettings} onSave={handleSaveAdminSettings} results={interviewResults} />;
+      // One Interview Model routes
+      case 'universalInterview': return <UniversalInterviewPage setRoute={setRoute} onStartInterview={handleStartUniversalInterview} />;
+      case 'opportunities': return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} />;
+      case 'talentPool': return <TalentPoolPage setRoute={setRoute} candidates={talentPool} jobs={jobs} selectedJobId={route.jobId} />;
       default: return <div>Not Found</div>;
     }
   };

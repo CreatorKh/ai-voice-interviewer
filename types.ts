@@ -55,13 +55,18 @@ export type AppRoute =
   | { name: 'interviewResult'; resultIndex: number }
   | { name: 'candidateDashboard' }
   | { name: 'hirerDashboard' }
-  | { name: 'hirerLanding' }  // Public landing page for hirers
+  | { name: 'hirerLanding' }
   | { name: 'profile' }
   | { name: 'earnings' }
   | { name: 'referrals' }
   | { name: 'domainExpert'; jobId: number; applicationData: ApplicationData; onComplete: (expertData: any) => void }
   | { name: 'settings' }
-  | { name: 'admin' };
+  | { name: 'admin' }
+  // One Interview Model routes
+  | { name: 'universalInterview' }           // Take the ONE interview
+  | { name: 'opportunities' }                 // View matched jobs
+  | { name: 'talentPool'; jobId?: number }   // Hirer: browse pre-vetted candidates
+  | { name: 'candidateProfile'; id: string }; // View candidate's universal profile
 
 export type SortKey = 'best' | 'trending' | 'newest' | 'pay';
 
@@ -125,6 +130,123 @@ export interface CandidateProfile {
   match: number;
   skills: string[];
   interviewResultId?: number;
+}
+
+// ============ ONE INTERVIEW MODEL ============
+
+// Skill categories for universal assessment
+export type SkillCategory = 
+  | 'software_engineering'
+  | 'data_science'
+  | 'cybersecurity'
+  | 'sales'
+  | 'management'
+  | 'communication'
+  | 'problem_solving'
+  | 'leadership';
+
+// Universal candidate profile after ONE interview
+export interface UniversalProfile {
+  id: string;
+  candidateId: string;
+  name: string;
+  email: string;
+  phone?: string;
+  linkedIn?: string;
+  github?: string;
+  portfolio?: string;
+  
+  // Interview results
+  interviewDate: string;
+  interviewLanguage: string;
+  recordingUrl?: string;
+  transcript?: TranscriptEntry[];
+  
+  // Universal scores (not job-specific)
+  scores: {
+    communication: number;      // How well they communicate
+    problemSolving: number;     // Analytical thinking
+    technicalDepth: number;     // Domain expertise
+    adaptability: number;       // Learning ability
+    professionalism: number;    // Work ethic, attitude
+    overall: number;
+  };
+  
+  // Detected skills from interview
+  detectedSkills: {
+    skill: string;
+    confidence: number; // 0-100
+    category: SkillCategory;
+  }[];
+  
+  // Experience level assessment
+  assessedLevel: ExperienceLevel;
+  yearsOfExperience?: number;
+  
+  // AI-generated summary
+  summary: string;
+  strengths: string[];
+  areasForImprovement: string[];
+  
+  // Anti-cheat
+  antiCheatReport?: AntiCheatReport;
+  
+  // Matching data
+  preferredRoles: string[];      // What roles they're interested in
+  preferredSalary?: { min: number; max: number; currency: string };
+  availability: 'immediately' | 'two_weeks' | 'one_month' | 'flexible';
+  workType: ('remote' | 'hybrid' | 'onsite')[];
+  
+  // Status
+  status: 'pending_review' | 'verified' | 'rejected';
+  verifiedAt?: string;
+  
+  createdAt: string;
+  updatedAt: string;
+}
+
+// Job match for a candidate
+export interface JobMatch {
+  jobId: number;
+  jobTitle: string;
+  companyName?: string;
+  matchScore: number;        // 0-100 how well candidate matches
+  matchReasons: string[];    // Why they match
+  missingSkills?: string[];  // What they're missing
+  salaryMatch: boolean;
+  levelMatch: boolean;
+  status: 'new' | 'viewed' | 'applied' | 'interviewing' | 'offered' | 'hired' | 'rejected';
+  matchedAt: string;
+}
+
+// Candidate's view of their opportunities
+export interface CandidateOpportunities {
+  profile: UniversalProfile;
+  matches: JobMatch[];
+  totalMatches: number;
+  newMatches: number;
+  appliedCount: number;
+  interviewingCount: number;
+}
+
+// Hirer's view of talent pool
+export interface TalentPoolCandidate {
+  profile: UniversalProfile;
+  matchScore: number;
+  matchReasons: string[];
+  stage: 'new' | 'reviewed' | 'shortlisted' | 'contacted' | 'interviewing' | 'offered' | 'hired' | 'passed';
+  notes?: string;
+  lastActivity?: string;
+}
+
+// Hirer's talent pool for a job
+export interface TalentPool {
+  jobId: number;
+  jobTitle: string;
+  candidates: TalentPoolCandidate[];
+  totalCandidates: number;
+  newCandidates: number;
+  shortlistedCount: number;
 }
 
 export interface User {

@@ -117,8 +117,16 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ setRoute, openSearchMod
                             </li>
                             <li>
                                 <HirerNavItem 
+                                    icon={<SparklesIcon />} 
+                                    label="Talent Pool" 
+                                    onClick={() => handleNav({name: 'talentPool'}, 'TalentPool')} 
+                                    active={activeNav === 'TalentPool'}
+                                />
+                            </li>
+                            <li>
+                                <HirerNavItem 
                                     icon={<UsersIcon />} 
-                                    label="Кандидаты" 
+                                    label="Мои кандидаты" 
                                     onClick={() => handleNav({name: 'hirerDashboard'}, 'Candidates')} 
                                     active={activeNav === 'Candidates'}
                                 />
