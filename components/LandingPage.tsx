@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppRoute } from '../types';
+import { WindLogo, WindLogoCompact } from './icons/WindLogo';
 
 // --- Inline Icons ---
 const ArrowRightIcon = ({ className = "" }: { className?: string }) => (
@@ -192,9 +193,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-black/60 backdrop-blur-2xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-              <SparklesIcon className="w-6 h-6 text-black" />
-            </div>
+            <WindLogo size={40} className="shadow-lg shadow-emerald-500/20" />
             <span className="text-xl font-bold tracking-tight">Wind AI</span>
           </div>
           <div className="hidden md:flex items-center gap-6 text-sm text-neutral-400">
@@ -666,7 +665,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       <footer className="py-12 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-400 to-cyan-500 shadow-lg shadow-emerald-500/20" />
+            <WindLogoCompact size={32} />
             <span className="font-bold">Wind AI</span>
           </div>
           <p className="text-neutral-600 text-sm">© 2024 Wind AI. Все права защищены.</p>

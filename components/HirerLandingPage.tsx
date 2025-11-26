@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { AppRoute } from '../types';
 import { useAuth } from './AuthContext';
 import HirerLoginModal from './HirerLoginModal';
+import { WindLogo, WindLogoCompact } from './icons/WindLogo';
 
 // Icons
 const CheckIcon = () => (
@@ -110,9 +111,7 @@ const HirerLandingPage: React.FC<HirerLandingPageProps> = ({ setRoute }) => {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-neutral-950/80 backdrop-blur-xl border-b border-white/5">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <button onClick={() => setRoute({ name: 'home' })} className="flex items-center gap-2">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <SparklesIcon />
-            </div>
+            <WindLogo size={40} variant="hirer" />
             <span className="text-xl font-bold">Wind AI</span>
             <span className="text-xs text-neutral-500 ml-1">for Hirers</span>
           </button>
@@ -290,9 +289,7 @@ const HirerLandingPage: React.FC<HirerLandingPageProps> = ({ setRoute }) => {
       <footer className="py-12 px-6 border-t border-white/5">
         <div className="max-w-6xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
-              <SparklesIcon />
-            </div>
+            <WindLogoCompact size={32} variant="hirer" />
             <span className="font-bold">Wind AI</span>
           </div>
           <div className="flex items-center gap-6 text-sm text-neutral-500">
