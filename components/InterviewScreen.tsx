@@ -257,20 +257,20 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
     const videoRef = useRef<HTMLVideoElement>(null);
     
     // Reconnect Refs
-    const retryCountRef = useRef(0);
+  const retryCountRef = useRef(0);
     const isReconnectingRef = useRef(false);
     const isAudioSetupRef = useRef(false);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const hasPlayedStartSoundRef = useRef(false); // Play start sound only once
 
     // Track mounted state
-    useEffect(() => {
+  useEffect(() => {
         isMountedRef.current = true;
         return () => { isMountedRef.current = false; };
     }, []);
 
     // Timer
-    useEffect(() => {
+  useEffect(() => {
         const i = setInterval(() => setTimer(t => t + 1), 1000);
         return () => clearInterval(i);
     }, []);
@@ -321,7 +321,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
         }
         
         console.log("All media stopped");
-    }, []);
+  }, []);
 
     // -- Cleanup --
     useEffect(() => {
@@ -337,7 +337,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
             if (!MediaRecorder.isTypeSupported('video/webm')) {
                 if (MediaRecorder.isTypeSupported('video/mp4')) {
                     mimeType = 'video/mp4';
-                } else {
+    } else {
                     mimeType = ''; 
                 }
             }
@@ -600,6 +600,14 @@ After EVERY answer, ask at least ONE follow-up question:
 - Do NOT rush through questions.
 - Do NOT end until all 5 phases are covered.
 
+=== ENDING THE INTERVIEW (CRITICAL) ===
+1. After you say "Всего доброго!" or "До свидания!" - THE INTERVIEW IS OVER.
+2. After the closing phrase, you MUST NOT respond to ANY further questions or comments from the candidate.
+3. If the candidate asks anything after you said goodbye, respond ONLY with: "Интервью завершено. Спасибо!"
+4. Do NOT answer general knowledge questions (like building heights, facts, etc.) - you are an INTERVIEWER, not a general assistant.
+5. If the candidate tries to continue the conversation after closing, say: "Интервью завершено. Результаты будут отправлены вам на почту."
+6. NEVER engage in casual conversation or answer off-topic questions.
+
 === CANDIDATE CONTEXT ===
 ${resumeContext}
 `;
@@ -731,6 +739,29 @@ ${resumeContext}
                                     // Show finalized AI text as subtitle
                                     setFinalizedAiText(currOut.trim());
                                     
+                                    // Check if AI said goodbye - auto-end interview
+                                    const goodbyePhrases = [
+                                        'всего доброго',
+                                        'до свидания',
+                                        'интервью завершено',
+                                        'спасибо за уделённое время',
+                                        'мы свяжемся с вами',
+                                        'goodbye',
+                                        'thank you for your time'
+                                    ];
+                                    const lowerText = currOut.toLowerCase();
+                                    const isGoodbye = goodbyePhrases.some(phrase => lowerText.includes(phrase));
+                                    
+                                    if (isGoodbye) {
+                                        console.log("[Interview] AI said goodbye, auto-ending interview in 3 seconds...");
+                                        // Auto-end interview after AI finishes speaking
+                                        setTimeout(() => {
+                                            if (isMountedRef.current) {
+                                                handleEndInterview();
+                                            }
+                                        }, 3000); // Wait 3 seconds for audio to finish
+                                    }
+                                    
                                     setTranscriptHistory(h => {
                                         // Deduplicate: Don't add if same as last AI message
                                         const last = h[h.length - 1];
@@ -819,19 +850,32 @@ ${resumeContext}
     const handleEndInterview = async () => {
         setStatus('DISCONNECTED');
         
+        // Close the Gemini session first to stop AI from responding
+        if (sessionPromiseRef.current) {
+            try {
+                const session = await sessionPromiseRef.current;
+                if (session && session.close) {
+                    session.close();
+                }
+            } catch (e) {
+                console.log("Session already closed or error closing:", e);
+            }
+            sessionPromiseRef.current = null;
+        }
+        
         // Stop recording properly to ensure ondataavailable fires for the last chunk
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
              await new Promise<void>(resolve => {
                  if (mediaRecorderRef.current) {
                     mediaRecorderRef.current.onstop = () => resolve();
                     mediaRecorderRef.current.stop();
-                 } else {
+      } else {
                      resolve();
                  }
              });
         }
         
-        // STOP ALL MEDIA HERE
+        // STOP ALL MEDIA HERE (camera, mic, etc.)
         stopMedia();
         
         // Ensure final transcription bits are saved

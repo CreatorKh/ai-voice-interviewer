@@ -1,7 +1,7 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
-import { Job, AppRoute, ApplicationData } from '../types';
+import { Job, AppRoute, ApplicationData, ExperienceLevel } from '../types';
 import Button from './Button';
 import Stepper from './Stepper';
 import { useAuth } from './AuthContext';
@@ -29,6 +29,17 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Continue to Device Check");
   const [error, setError] = useState<string|null>(null);
+  
+  // Get selected level from localStorage (set in JobPage)
+  const [selectedLevel, setSelectedLevel] = useState<ExperienceLevel | undefined>(() => {
+    const saved = localStorage.getItem('selectedLevel');
+    return saved ? saved as ExperienceLevel : undefined;
+  });
+
+  // Clear the level from localStorage after reading
+  useEffect(() => {
+    localStorage.removeItem('selectedLevel');
+  }, []);
 
   const languages = ["English", "Russian"];
 
@@ -55,6 +66,7 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
       leetcodeUrl: leetcodeUrl || undefined,
       tryhackmeUrl: tryhackmeUrl || undefined,
       codeforcesUrl: codeforcesUrl || undefined,
+      selectedLevel: selectedLevel,
     };
 
     if (applicationData.linkedInUrl || applicationData.githubUrl || applicationData.kaggleUrl || applicationData.leetcodeUrl || applicationData.tryhackmeUrl || applicationData.codeforcesUrl) {
@@ -120,6 +132,18 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
           <li className="opacity-60">2. Device Check</li>
           <li className="opacity-60">3. AI Interview</li>
         </ul>
+        
+        {selectedLevel && (
+          <div className="mt-6 p-3 rounded-lg bg-white/[0.03] border border-white/10">
+            <p className="text-xs text-neutral-400">Selected Level</p>
+            <p className={`font-semibold mt-1 ${
+              selectedLevel === 'junior' ? 'text-green-400' :
+              selectedLevel === 'middle' ? 'text-yellow-400' : 'text-red-400'
+            }`}>
+              {selectedLevel === 'junior' ? 'Junior' : selectedLevel === 'middle' ? 'Middle' : 'Senior'}
+            </p>
+          </div>
+        )}
       </aside>
       <div>
         <button onClick={() => setRoute({ name: 'job', id: job.id })} className="text-sm text-cyan-300 hover:underline mb-4">← Back to job details</button>

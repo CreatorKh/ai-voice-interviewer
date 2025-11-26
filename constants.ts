@@ -53,13 +53,22 @@ export const JOBS: Job[] = [
   { id: 2, title: 'Software Engineer, Backend', contract_type: 'Full-time', description: 'We are looking for a backend engineer to help us build out our core infrastructure. You will be working with a team of engineers and product managers to build and deploy services that will be used by millions of users.', rate_min: 80, rate_max: 100, currency: 'USD', hired_this_month: 2, posted_days_ago: 7 },
   { id: 3, title: 'Frontend Engineer', contract_type: 'Part-time', description: 'We are looking for a frontend engineer to help us build out our core infrastructure. You will be working with a team of engineers and product managers to build and deploy services that will be used by millions of users.', rate_min: 60, rate_max: 80, currency: 'USD', hired_this_month: 1, posted_days_ago: 14 },
   { id: 4, title: 'Financial Forecaster', contract_type: 'Full-time', description: 'Analyzing financial data, developing forecasting models, and providing insights to support strategic decision-making.', rate_min: 105, rate_max: 140, currency: 'USD', hired_this_month: 8, posted_days_ago: 2 },
-  { id: 5, title: 'Anti-Fraud Specialist', contract_type: 'Contract', description: 'Monitor transactions, investigate suspicious activities, and implement fraud prevention strategies.', rate_min: 70, rate_max: 95, currency: 'USD', hired_this_month: 12, posted_days_ago: 5 },
+  
+  // Anti-Fraud Specialist with levels
+  { id: 5, title: 'Anti-Fraud Specialist', contract_type: 'Contract', description: 'Monitor transactions, investigate suspicious activities, and implement fraud prevention strategies.', rate_min: 70, rate_max: 95, currency: 'USD', hired_this_month: 12, posted_days_ago: 5, hasLevels: true, baseTitle: 'Anti-Fraud Specialist' },
+  
   { id: 6, title: 'Compliance Officer', contract_type: 'Full-time', description: 'Ensure the company adheres to legal standards and in-house policies. Responsible for enforcing regulations in all aspects and levels of business.', rate_min: 90, rate_max: 110, currency: 'USD', hired_this_month: 3, posted_days_ago: 20 },
   { id: 7, title: 'AI Ethics Researcher', contract_type: 'Part-time', description: 'Investigate the ethical implications of AI systems, develop guidelines, and contribute to responsible AI development.', rate_min: 50, rate_max: 75, currency: 'USD', hired_this_month: 0, posted_days_ago: 30 },
   { id: 8, title: 'Risk Analyst', contract_type: 'Contract', description: 'Identify and analyze potential risks to the organization\'s assets, earning capacity, or success.', rate_min: 65, rate_max: 85, currency: 'USD', hired_this_month: 6, posted_days_ago: 10 },
-  { id: 9, title: 'Cybersecurity Analyst', contract_type: 'Full-time', description: 'Protect company hardware, software, and networks from cybercriminals. Monitor networks for security breaches.', rate_min: 95, rate_max: 130, currency: 'USD', hired_this_month: 4, posted_days_ago: 12 },
+  
+  // Cybersecurity Analyst with levels
+  { id: 9, title: 'Cybersecurity Analyst', contract_type: 'Full-time', description: 'Protect company hardware, software, and networks from cybercriminals. Monitor networks for security breaches.', rate_min: 95, rate_max: 130, currency: 'USD', hired_this_month: 4, posted_days_ago: 12, hasLevels: true, baseTitle: 'Cybersecurity Analyst' },
+  
   { id: 10, title: 'SQL Specialist / DBA', contract_type: 'Contract', description: 'Deep expertise in SQL, database optimization, schema design, and performance tuning. PostgreSQL/MySQL focus.', rate_min: 90, rate_max: 150, currency: 'USD', hired_this_month: 2, posted_days_ago: 1 },
   { id: 11, title: 'Analytics Engineer (SQL Focused)', contract_type: 'Full-time', description: 'Bridge the gap between data engineering and data analysis. Strong SQL, DBT, and data modeling skills required.', rate_min: 110, rate_max: 160, currency: 'USD', hired_this_month: 6, posted_days_ago: 3 },
   { id: 12, title: 'E-commerce Seller Manager', contract_type: 'Full-time', description: 'Develop and support sellers on marketplace platforms. Help optimize product listings, pricing strategies, and promotional campaigns. Drive GMV growth through seller partnerships.', rate_min: 50, rate_max: 80, currency: 'USD', hired_this_month: 8, posted_days_ago: 1 },
   { id: 13, title: 'Sales Manager / BDM', contract_type: 'Full-time', description: 'Drive B2B sales, build client relationships, negotiate deals, and achieve revenue targets. Strong communication and persuasion skills required.', rate_min: 60, rate_max: 100, currency: 'USD', hired_this_month: 10, posted_days_ago: 2 },
+  
+  // Data Analyst with levels
+  { id: 14, title: 'Data Analyst', contract_type: 'Full-time', description: 'Analyze complex datasets, create reports and dashboards, and provide actionable insights to drive business decisions.', rate_min: 60, rate_max: 100, currency: 'USD', hired_this_month: 15, posted_days_ago: 1, hasLevels: true, baseTitle: 'Data Analyst' },
 ];

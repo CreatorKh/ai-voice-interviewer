@@ -11,6 +11,7 @@ import SearchModal from './components/SearchModal';
 // Pages
 import HomePage from './components/HomePage';
 import LandingPage from './components/LandingPage';
+import HirerLandingPage from './components/HirerLandingPage';
 import ExplorePage from './components/ExplorePage';
 import JobPage from './components/JobPage';
 import ApplyPage from './components/ApplyPage';
@@ -33,11 +34,25 @@ import { AppRoute, Job, TranscriptEntry, InterviewResult, ApplicationData, Contr
 
 
 const App: React.FC = () => {
-  const { user, isLoginChoiceOpen, closeLoginChoice, isOnboardingOpen, openLoginChoice } = useAuth();
+  const { user, userRole, isLoginChoiceOpen, closeLoginChoice, isOnboardingOpen, openLoginChoice } = useAuth();
   
   const [route, setRoute] = useState<AppRoute>({ name: 'home' });
   const [jobs] = useState<Job[]>(JOBS);
-  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([]);
+  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>(() => {
+    const saved = localStorage.getItem('interviewResults');
+    try {
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      console.error('Failed to parse interviewResults from localStorage', e);
+      return [];
+    }
+  });
+  
+  // Persist interview results
+  useEffect(() => {
+    localStorage.setItem('interviewResults', JSON.stringify(interviewResults));
+  }, [interviewResults]);
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -89,8 +104,10 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
+        // Public routes that don't need login
+        const publicRoutes = ['home', 'explore', 'job', 'hirerLanding'];
         // If trying to access a protected route, just open login modal (don't redirect to home/landing)
-        if (route.name !== 'explore' && route.name !== 'job' && route.name !== 'home') {
+        if (!publicRoutes.includes(route.name)) {
             openLoginChoice(); 
         }
     }
@@ -182,6 +199,11 @@ const App: React.FC = () => {
   };
 
   const renderContent = () => {
+    // Hirers have a different home page
+    if (userRole === 'hirer' && route.name === 'home') {
+      return <HirerDashboardPage results={interviewResults} contracts={contracts} onHire={handleHire} onFund={handleFund} onRelease={handleRelease} setRoute={setRoute} />;
+    }
+    
     switch (route.name) {
       case 'home': return <HomePage setRoute={setRoute} />;
       case 'explore': return <ExplorePage jobs={jobs} setRoute={setRoute} />;
@@ -192,12 +214,13 @@ const App: React.FC = () => {
       case 'interviewResult': return <InterviewResultPage result={interviewResults[route.resultIndex]} isLoading={isLoadingResult} setRoute={setRoute} />;
       case 'candidateDashboard': return <CandidateDashboardPage results={interviewResults} contracts={contracts} setRoute={setRoute} />;
       case 'hirerDashboard': return <HirerDashboardPage results={interviewResults} contracts={contracts} onHire={handleHire} onFund={handleFund} onRelease={handleRelease} setRoute={setRoute} />;
+      case 'hirerLanding': return <HirerLandingPage setRoute={setRoute} />;
       case 'profile': return <ProfilePage />;
       case 'earnings': return <EarningsPage setRoute={setRoute} />;
       case 'referrals': return <ReferralsPage setRoute={setRoute} />;
       case 'domainExpert': return <DomainExpertPage job={jobs.find(j => j.id === route.jobId)!} applicationData={route.applicationData} onComplete={handleDomainExpertComplete} setRoute={setRoute} />;
       case 'settings': return <SettingsPage />;
-      case 'admin': return <AdminPage settings={adminSettings} onSave={handleSaveAdminSettings} />;
+      case 'admin': return <AdminPage settings={adminSettings} onSave={handleSaveAdminSettings} results={interviewResults} />;
       default: return <div>Not Found</div>;
     }
   };
@@ -205,7 +228,7 @@ const App: React.FC = () => {
   // PUBLIC VIEW (not logged in)
   if (!user) {
     // Check if trying to access protected route - show minimal background with login modal
-    const isProtectedRoute = !['home', 'explore', 'job'].includes(route.name);
+    const isProtectedRoute = !['home', 'explore', 'job', 'hirerLanding'].includes(route.name);
     
     return (
         <div className="bg-neutral-950 text-neutral-100 font-sans min-h-screen">
@@ -220,6 +243,9 @@ const App: React.FC = () => {
             ) : route.name === 'home' ? (
                 // Landing Page for visitors
                 <LandingPage setRoute={setRoute} />
+            ) : route.name === 'hirerLanding' ? (
+                // Landing Page for hirers
+                <HirerLandingPage setRoute={setRoute} />
             ) : route.name === 'explore' ? (
                 // Public job listing
                 <main className="p-4 sm:p-6 lg:p-8">

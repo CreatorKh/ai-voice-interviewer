@@ -12,6 +12,8 @@ export interface Transaction {
 }
 
 // FIX: Added missing type definitions.
+export type ExperienceLevel = 'junior' | 'middle' | 'senior';
+
 export interface Job {
   id: number;
   title: string;
@@ -22,6 +24,9 @@ export interface Job {
   currency: string;
   hired_this_month: number;
   posted_days_ago: number;
+  hasLevels?: boolean; // If true, show level selection
+  baseTitle?: string; // Base title without level (e.g., "Anti-Fraud Specialist")
+  level?: ExperienceLevel; // Current selected level
 }
 
 export interface ApplicationData {
@@ -37,6 +42,7 @@ export interface ApplicationData {
   codeforcesUrl?: string;
   profileSummary?: string;
   parsedSkills?: string[];
+  selectedLevel?: ExperienceLevel; // Selected experience level for interview
 }
 
 export type AppRoute =
@@ -49,6 +55,7 @@ export type AppRoute =
   | { name: 'interviewResult'; resultIndex: number }
   | { name: 'candidateDashboard' }
   | { name: 'hirerDashboard' }
+  | { name: 'hirerLanding' }  // Public landing page for hirers
   | { name: 'profile' }
   | { name: 'earnings' }
   | { name: 'referrals' }
@@ -93,10 +100,13 @@ export interface InterviewResult {
     shortSummary?: string;
     strengths: string[];
     areasForImprovement: string[];
+    finalVerdict?: 'Hire' | 'No Hire' | 'Maybe';
+    llmUsed?: boolean;
   } | null;
   transcript: TranscriptEntry[];
   recordingUrl: string;
   antiCheatReport?: AntiCheatReport;
+  level?: ExperienceLevel; // Level at which interview was conducted
 }
 
 export interface Contract {

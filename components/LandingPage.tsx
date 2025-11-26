@@ -194,6 +194,12 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             <a href="#team" className="hover:text-white transition-colors">Команда</a>
             <a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a>
             <a href="#tech" className="hover:text-white transition-colors">Технологии</a>
+            <button 
+              onClick={() => setRoute({ name: 'hirerLanding' })}
+              className="hover:text-white transition-colors"
+            >
+              Для HR
+            </button>
           </div>
           <button 
             onClick={() => setRoute({ name: 'explore' })}
