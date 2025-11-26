@@ -262,6 +262,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
     const isAudioSetupRef = useRef(false);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
     const hasPlayedStartSoundRef = useRef(false); // Play start sound only once
+    const isManuallyEndingRef = useRef(false); // Flag to prevent reconnect on manual end
 
     // Track mounted state
   useEffect(() => {
@@ -791,7 +792,8 @@ ${resumeContext}
                     },
                     onclose: () => {
                         console.log("Session closed");
-                        if (isMountedRef.current && status !== 'DISCONNECTED') { // If not manually closed
+                        // Only reconnect if not manually ending and component is still mounted
+                        if (isMountedRef.current && !isManuallyEndingRef.current && status !== 'DISCONNECTED') {
                              handleReconnect();
                         }
                     },
@@ -823,7 +825,8 @@ ${resumeContext}
     }, [job, applicationData, transcriptHistory, status]);
 
     const handleReconnect = useCallback(() => {
-        if (isReconnectingRef.current || status === 'DISCONNECTED') return;
+        // Don't reconnect if manually ending interview
+        if (isManuallyEndingRef.current || isReconnectingRef.current || status === 'DISCONNECTED') return;
         
         if (retryCountRef.current < 5) {
             isReconnectingRef.current = true;
@@ -848,6 +851,8 @@ ${resumeContext}
     }, []); 
 
     const handleEndInterview = async () => {
+        // Mark as manually ending to prevent reconnect attempts
+        isManuallyEndingRef.current = true;
         setStatus('DISCONNECTED');
         
         // Close the Gemini session first to stop AI from responding

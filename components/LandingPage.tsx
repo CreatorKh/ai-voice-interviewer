@@ -232,21 +232,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           <div style={fadeIn(0)}>
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-8 backdrop-blur-sm">
               <span className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse" />
-              Революция в HR-Tech
+              Новая эпоха найма
             </span>
           </div>
           
           <h1 style={fadeIn(100)} className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] mb-8">
-            Нанимайте лучших
+            Одно интервью.
             <br />
             <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400 bg-clip-text text-transparent bg-[size:200%] animate-gradient">
-              без ожидания
+              Сотни возможностей.
             </span>
           </h1>
           
           <p style={fadeIn(200)} className="text-lg sm:text-xl text-neutral-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            AI-интервьюер, который проводит технические собеседования 24/7, 
-            экономя <span className="text-white font-semibold">90% времени</span> рекрутеров и кандидатов.
+            Пройдите одно AI-интервью и получите доступ к вакансиям от лучших компаний. 
+            <span className="text-white font-semibold">Без повторных собеседований</span> — ваш профиль работает на вас.
           </p>
           
           <div style={fadeIn(300)} className="flex flex-col sm:flex-row gap-4 justify-center items-center">
@@ -267,10 +267,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           {/* 3D Stats Cards */}
           <div style={fadeIn(400)} className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-4xl mx-auto">
             {[
-              { value: '10x', label: 'Быстрее найм' },
-              { value: '90%', label: 'Экономия времени' },
+              { value: '500+', label: 'Компаний' },
+              { value: '10K+', label: 'Вакансий' },
               { value: '24/7', label: 'Доступность' },
-              { value: '$0', label: 'За интервью' },
+              { value: '15 мин', label: 'Одно интервью' },
             ].map((stat, i) => (
               <TiltCard key={i} intensity={8}>
                 <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
@@ -336,23 +336,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             <TiltCard intensity={5}>
               <div className="h-full p-8 md:p-10 rounded-3xl bg-gradient-to-br from-emerald-950/30 to-emerald-950/10 border border-emerald-500/20 backdrop-blur-sm">
                 <h3 className="text-emerald-400 font-semibold text-sm mb-4">РЕШЕНИЕ</h3>
-                <h4 className="text-2xl md:text-3xl font-bold mb-6">AI-интервьюер для первичного скрининга</h4>
+                <h4 className="text-2xl md:text-3xl font-bold mb-6">Одно интервью — доступ ко всем вакансиям</h4>
                 <ul className="space-y-4 text-neutral-300">
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Голосовые интервью 24/7</strong> — кандидат выбирает удобное время</span>
+                    <span><strong>Одно интервью</strong> — кандидат проходит его один раз и получает универсальный профиль</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Структурированная оценка</strong> — одинаковые вопросы для всех</span>
+                    <span><strong>AI-матчинг</strong> — система автоматически подбирает подходящие вакансии</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Мгновенный фидбек</strong> — детальный отчёт сразу после интервью</span>
+                    <span><strong>Talent Pool</strong> — компании находят верифицированных кандидатов</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Антифрод-система</strong> — анализ видео, голоса и текста</span>
+                    <span><strong>Антифрод-система</strong> — гарантия честности интервью</span>
                   </li>
                 </ul>
               </div>
@@ -363,8 +363,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           <TiltCard intensity={3} className="mt-8">
             <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center backdrop-blur-sm">
               <p className="text-lg text-neutral-300">
-                <strong className="text-white">Ожидаемый эффект:</strong> сокращение времени первичного скрининга с 2 недель до 1 дня, 
-                снижение нагрузки на HR-команду на 70%.
+                <strong className="text-white">Как у Mercor:</strong> одна точка входа для кандидатов, 
+                мгновенный доступ к верифицированным специалистам для компаний.
               </p>
             </div>
           </TiltCard>
@@ -449,7 +449,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               },
               {
                 title: 'Скорость исполнения',
-                desc: 'Весь текущий прототип создан за 4 дня. Мы умеем быстро итерировать, тестировать гипотезы и доводить до результата.',
+                desc: 'Agile-подход к разработке. Мы умеем быстро итерировать, тестировать гипотезы и доводить до результата.',
               },
             ].map((item, i) => (
               <TiltCard key={i} intensity={6}>
