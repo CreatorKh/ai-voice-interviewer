@@ -128,9 +128,7 @@ const TEAM_MEMBERS = [
     position: "Team Lead Antifraud",
     skills: ["Fraud Detection", "Risk Analysis", "Team Management", "Banking Systems"],
     linkedin: "https://linkedin.com/in/khurshid-khusanboev",
-    // Загрузите фото в public/images/team/khurshid.jpg и раскомментируйте:
-    // avatar: "/images/team/khurshid.jpg",
-    avatar: null, // Использует UI Avatars
+    avatar: "https://media.licdn.com/dms/image/v2/D4D03AQEZLCxNSxLe4A/profile-displayphoto-shrink_400_400/B4DZP5fe8HG0Ak-/0/1735057601957?e=1766016000&v=beta&t=LtX26cHs1dZXBBk1G7ZRK5Ad87XTX_LPIhD0JGluZCc",
   },
   {
     name: "Жамшид Хусанбаев",
@@ -139,9 +137,7 @@ const TEAM_MEMBERS = [
     position: "Seller Development Manager",
     skills: ["E-commerce", "Business Strategy", "Partner Relations", "Growth"],
     linkedin: "https://linkedin.com/in/jamshid-khusanbaev",
-    // Загрузите фото в public/images/team/jamshid.jpg и раскомментируйте:
-    // avatar: "/images/team/jamshid.jpg",
-    avatar: null, // Использует UI Avatars
+    avatar: "https://media.licdn.com/dms/image/v2/D4D03AQHrQm8iTROwXg/profile-displayphoto-scale_400_400/B4DZneMJYOHsAk-/0/1760369352202?e=1766016000&v=beta&t=ShNKINP--ouw5bog0O1DpefNH51bIOE6hmrlMvuucJg",
   },
 ];
 
