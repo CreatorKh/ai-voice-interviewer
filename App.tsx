@@ -1,7 +1,3 @@
-
-
-
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { GoogleGenAI, Type } from '@google/genai';
 
@@ -14,6 +10,7 @@ import SearchModal from './components/SearchModal';
 
 // Pages
 import HomePage from './components/HomePage';
+import LandingPage from './components/LandingPage';
 import ExplorePage from './components/ExplorePage';
 import JobPage from './components/JobPage';
 import ApplyPage from './components/ApplyPage';
@@ -92,12 +89,12 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (!user) {
-        setRoute({ name: 'explore' }); // Default page for logged-out users
-        openLoginChoice();
-    } else {
-        setRoute({ name: 'home' });
+        // If trying to access a protected route, just open login modal (don't redirect to home/landing)
+        if (route.name !== 'explore' && route.name !== 'job' && route.name !== 'home') {
+            openLoginChoice(); 
+        }
     }
-  }, [user, openLoginChoice]);
+  }, [user, route.name, openLoginChoice]);
 
   const handleEndInterview = useCallback(async (
     transcript: TranscriptEntry[],
@@ -205,20 +202,46 @@ const App: React.FC = () => {
     }
   };
 
+  // PUBLIC VIEW (not logged in)
   if (!user) {
+    // Check if trying to access protected route - show minimal background with login modal
+    const isProtectedRoute = !['home', 'explore', 'job'].includes(route.name);
+    
     return (
-        <div className="bg-neutral-950 text-neutral-100 font-sans">
-            <main className="p-4 sm:p-6 lg:p-8">
-                <div className="mx-auto max-w-6xl">
-                    <ExplorePage jobs={jobs} setRoute={setRoute} />
+        <div className="bg-neutral-950 text-neutral-100 font-sans min-h-screen">
+            {isProtectedRoute ? (
+                // Protected route - show minimal dark background (no landing page)
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <h1 className="text-2xl font-bold mb-4">Wind AI</h1>
+                        <p className="text-neutral-400">Пожалуйста, войдите для продолжения</p>
+                    </div>
                 </div>
-            </main>
+            ) : route.name === 'home' ? (
+                // Landing Page for visitors
+                <LandingPage setRoute={setRoute} />
+            ) : route.name === 'explore' ? (
+                // Public job listing
+                <main className="p-4 sm:p-6 lg:p-8">
+                    <div className="mx-auto max-w-6xl">
+                        <ExplorePage jobs={jobs} setRoute={setRoute} />
+                    </div>
+                </main>
+            ) : route.name === 'job' ? (
+                // Public job details
+                <main className="p-4 sm:p-6 lg:p-8">
+                    <div className="mx-auto max-w-6xl">
+                        <JobPage job={jobs.find(j => j.id === route.id)!} setRoute={setRoute} />
+                    </div>
+                </main>
+            ) : null}
             <LoginModal isOpen={isLoginChoiceOpen} onClose={closeLoginChoice} />
             <OnboardingModal isOpen={isOnboardingOpen} onClose={closeLoginChoice} />
         </div>
     );
   }
 
+  // LOGGED IN VIEW
   return (
     <>
       <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>

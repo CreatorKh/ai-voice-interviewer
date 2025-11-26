@@ -8,6 +8,59 @@ import LogOutIcon from './icons/StopIcon';
 
 // --- Audio Utils (Adapted from Gemini Live API Docs) ---
 
+// Sound notification when user can start speaking (plays at the beginning)
+function playStartSound() {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        // Gentle "ready" chime - single soft tone
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime);
+        oscillator.type = 'sine';
+        
+        gainNode.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.3);
+        
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.3);
+        
+        setTimeout(() => audioCtx.close(), 400);
+    } catch (e) {
+        // Ignore audio errors
+    }
+}
+
+// Soft sound when AI starts speaking (very subtle, not annoying)
+function playAiStartSound() {
+    try {
+        const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        const oscillator = audioCtx.createOscillator();
+        const gainNode = audioCtx.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioCtx.destination);
+        
+        // Very soft, short "pop" sound - barely noticeable
+        oscillator.frequency.setValueAtTime(440, audioCtx.currentTime);
+        oscillator.type = 'sine';
+        
+        // Very quiet - just a subtle indicator
+        gainNode.gain.setValueAtTime(0.06, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.08);
+        
+        oscillator.start(audioCtx.currentTime);
+        oscillator.stop(audioCtx.currentTime + 0.08);
+        
+        setTimeout(() => audioCtx.close(), 150);
+    } catch (e) {
+        // Ignore audio errors
+    }
+}
+
 function downsampleBuffer(buffer: Float32Array, inputSampleRate: number, targetSampleRate: number): Float32Array {
     if (inputSampleRate === targetSampleRate) return buffer;
     if (inputSampleRate < targetSampleRate) return buffer; 
@@ -182,6 +235,10 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
     const [currentInputTrans, setCurrentInputTrans] = useState("");
     const [currentOutputTrans, setCurrentOutputTrans] = useState("");
     const [transcriptHistory, setTranscriptHistory] = useState<TranscriptEntry[]>([]);
+    
+    // UX: Show "You can speak" indicator and finalized AI subtitle
+    const [canSpeak, setCanSpeak] = useState(false);
+    const [finalizedAiText, setFinalizedAiText] = useState(""); // Only show after AI finishes speaking
 
     // -- Refs --
     const isMountedRef = useRef(true); // Track component mount state
@@ -204,6 +261,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
     const isReconnectingRef = useRef(false);
     const isAudioSetupRef = useRef(false);
     const videoIntervalRef = useRef<NodeJS.Timeout | null>(null);
+    const hasPlayedStartSoundRef = useRef(false); // Play start sound only once
 
     // Track mounted state
     useEffect(() => {
@@ -226,18 +284,30 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
              videoIntervalRef.current = null;
         }
 
-        // 1. Stop Mic Tracks
+        // 1. Stop ALL Tracks (audio + video)
         if (micStreamRef.current) {
-            micStreamRef.current.getTracks().forEach(t => {
+            const tracks = micStreamRef.current.getTracks();
+            console.log(`Stopping ${tracks.length} tracks...`);
+            tracks.forEach(t => {
+                console.log(`Stopping track: ${t.kind} - ${t.label}`);
                 t.stop();
-                console.log(`Stopped track: ${t.label}`);
             });
             micStreamRef.current = null;
         }
         
-        // 2. Close Audio Contexts
-        // Use refs directly to avoid closure staleness, but check if they are the current ones? 
-        // Simply closing what is in the ref is usually correct for cleanup.
+        // 2. Also stop video element's srcObject tracks (in case they're different)
+        if (videoRef.current && videoRef.current.srcObject) {
+            const videoStream = videoRef.current.srcObject as MediaStream;
+            if (videoStream && videoStream.getTracks) {
+                videoStream.getTracks().forEach(t => {
+                    console.log(`Stopping video element track: ${t.kind} - ${t.label}`);
+                    t.stop();
+                });
+            }
+            videoRef.current.srcObject = null;
+        }
+        
+        // 3. Close Audio Contexts
         if (inputAudioCtxRef.current && inputAudioCtxRef.current.state !== 'closed') {
             try { inputAudioCtxRef.current.close(); } catch(e) {}
         }
@@ -245,14 +315,9 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
             try { outputAudioCtxRef.current.close(); } catch(e) {}
         }
         
-        // 3. Stop Media Recorder
+        // 4. Stop Media Recorder
         if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
              try { mediaRecorderRef.current.stop(); } catch(e) {}
-        }
-        
-        // 4. Clear Video
-        if (videoRef.current) {
-            videoRef.current.srcObject = null;
         }
         
         console.log("All media stopped");
@@ -440,49 +505,102 @@ TryHackMe: ${applicationData.tryhackmeUrl || "N/A"}
 CodeForces: ${applicationData.codeforcesUrl || "N/A"}
 `;
 
-            // Generate Strict Question Plan (RAG)
+            // Generate Strict Question Plan (RAG) - Extended for 10+ minute interview
             const plan = [
                 getQuestionForRoleAndStage(job.title, 'Background', 1) || "Расскажите о себе и своем опыте.",
+                getQuestionForRoleAndStage(job.title, 'Background', 2) || "Какой проект вы считаете наиболее значимым?",
                 getQuestionForRoleAndStage(job.title, 'Core', 2) || "Какие основные инструменты вы используете?",
                 getQuestionForRoleAndStage(job.title, 'Core', 3) || "Углубимся в технические детали.",
+                getQuestionForRoleAndStage(job.title, 'Core', 3) || "Расскажите о вашем подходе к решению задач.",
+                getQuestionForRoleAndStage(job.title, 'DeepDive', 3) || "Опишите сложную ситуацию из практики.",
                 getQuestionForRoleAndStage(job.title, 'DeepDive', 4) || "Расскажите о сложной проблеме, которую вы решили.",
                 getQuestionForRoleAndStage(job.title, 'Case', 3) || "Давайте разберем практический кейс.",
+                getQuestionForRoleAndStage(job.title, 'Case', 4) || "Представьте ситуацию...",
+                getQuestionForRoleAndStage(job.title, 'Debug', 3) || "Как бы вы отладили эту проблему?",
                 getQuestionForRoleAndStage(job.title, 'WrapUp', 2) || "Какие у вас есть вопросы?"
             ];
 
             let systemInstruction = `
-ROLE: You are Zarina, an expert technical interviewer from Wind AI.
-Your goal is to run a structured, professional technical interview for the ${job.title} role.
+ROLE: You are Zarina, an expert interviewer from Wind AI.
+Your goal is to run a structured, professional, and THOROUGH interview for the ${job.title} role.
+You are warm, professional, and genuinely interested in the candidate's experience.
 
-STARTING RULES (VERY IMPORTANT):
-1. YOU initiate the conversation once (do not wait for the candidate).
-2. Greeting script (translate to ${applicationData.language || 'English'}):
-   "Здравствуйте, я Зарина из Wind AI. Мы проведём техническое интервью на позицию ${job.title}. Готовы начать?"
-3. After the greeting, immediately follow the structure below and DO NOT repeat the greeting later.
+=== CRITICAL LANGUAGE RULE ===
+YOU MUST SPEAK ONLY IN ${applicationData.language || 'Russian'}.
+NEVER switch to English or any other language, even if the candidate speaks in another language.
+If the candidate speaks in another language, respond in ${applicationData.language || 'Russian'} and politely ask them to continue in ${applicationData.language || 'Russian'}.
+ALL your questions, responses, and acknowledgments MUST be in ${applicationData.language || 'Russian'}.
 
-INTERVIEW PLAN (STRICTLY FOLLOW THIS SEQUENCE):
-1. Greeting & Intro
-2. Question 1: ${plan[0]}
-3. Question 2: ${plan[1]}
-4. Question 3: ${plan[2]}
-5. Question 4: ${plan[3]}
-6. Question 5: ${plan[4]}
-7. Question 6: ${plan[5]}
-8. Closing
+=== STARTING RULES ===
+1. YOU initiate the conversation ONCE (do not wait for the candidate).
+2. Greet the candidate EXACTLY ONCE with this script (in ${applicationData.language || 'Russian'}):
+   "Здравствуйте! Меня зовут Зарина, я из Wind AI. Рада вас видеть! Сегодня мы проведём интервью на позицию ${job.title}. Как ваше настроение? Готовы начать?"
+3. NEVER repeat the greeting. If the candidate says "привет" or "hello", just acknowledge and move to the first question.
+4. Wait for the candidate to respond, then proceed to Phase 1.
 
-LANGUAGE RULE:
-- Conduct the entire interview strictly in ${applicationData.language || 'English'}.
-- If the candidate slips into another language, remind them (politely) to continue in ${applicationData.language || 'English'} and continue.
+=== INTERVIEW STRUCTURE (15-20 MINUTES TOTAL) ===
+Each phase should include follow-up questions based on the candidate's answers.
+Use "Угу", "Понятно", "Интересно", "Отлично" to acknowledge answers naturally.
 
-BEHAVIORAL RULES:
-1. Be concise, professional, analytical.
-2. Ask only one question at a time.
-3. Drill down on vague answers.
-4. If the candidate gives a nonsense/very short response (e.g., "s", ".", "не знаю"):
-   - Do NOT praise.
-   - Say: "Я не расслышала детали. Уточните, пожалуйста." and ask a more focused follow-up.
+PHASE 1 - WARMUP & BACKGROUND (3-4 min):
+Main questions:
+- ${plan[0]}
+- ${plan[1]}
+Follow-up examples: "Расскажите подробнее", "Какие были результаты?", "Что было самым сложным?"
 
-CANDIDATE CONTEXT:
+PHASE 2 - CORE SKILLS (5-6 min):
+Main questions:
+- ${plan[2]}
+- ${plan[3]}
+- ${plan[4]}
+Follow-up examples: "Почему именно так?", "Приведите конкретный пример", "Как вы измеряли успех?"
+
+PHASE 3 - DEEP DIVE (4-5 min):
+Main questions:
+- ${plan[5]}
+- ${plan[6]}
+Follow-up examples: "А если бы...", "Что бы вы сделали иначе?", "Какие были альтернативы?"
+
+PHASE 4 - PRACTICAL CASES (3-4 min):
+Main questions:
+- ${plan[7]}
+- ${plan[8]}
+- ${plan[9]}
+Follow-up examples: "Как бы вы поступили если...", "Какие ещё варианты?"
+
+PHASE 5 - WRAP UP (2-3 min):
+- ${plan[10]}
+- "Есть ли что-то, о чём вы хотели бы рассказать, но мы не затронули?"
+- Closing: "Спасибо за уделённое время! Было очень интересно пообщаться. Мы свяжемся с вами в ближайшее время. Всего доброго!"
+
+=== CONVERSATION STYLE ===
+1. Be WARM and ENCOURAGING - smile through your voice.
+2. Use natural acknowledgments: "Угу", "Понятно", "Интересно!", "Отлично!", "Хороший пример."
+3. Ask ONE question at a time, then WAIT for a complete answer.
+4. After each answer, briefly acknowledge, then ask a follow-up OR move to next topic.
+5. Have 2-3 exchanges per topic before moving on.
+
+=== FOLLOW-UP RULES ===
+After EVERY answer, ask at least ONE follow-up question:
+- "Расскажите подробнее о..."
+- "Какие были конкретные результаты?"
+- "С какими трудностями столкнулись?"
+- "Как вы это измеряли?"
+- "Что бы вы сделали по-другому сейчас?"
+- "Почему вы выбрали именно такой подход?"
+
+=== LISTENING RULES ===
+- WAIT at least 5 seconds of silence before responding.
+- If the candidate is still thinking, wait longer.
+- NEVER say "не расслышала" / "повторите" - if unclear, just move on gracefully.
+- If short answer, ask for elaboration: "Можете рассказать подробнее?"
+
+=== PACING ===
+- Interview MUST last at least 15 minutes.
+- Do NOT rush through questions.
+- Do NOT end until all 5 phases are covered.
+
+=== CANDIDATE CONTEXT ===
 ${resumeContext}
 `;
 
@@ -530,6 +648,13 @@ ${resumeContext}
 
                             setTimeout(() => {
                                 if (!isMountedRef.current) return;
+                                
+                                // Play start sound ONCE when interview begins
+                                if (!hasPlayedStartSoundRef.current) {
+                                    hasPlayedStartSoundRef.current = true;
+                                    playStartSound();
+                                }
+                                
                                 const startPrompt = `SYSTEM: The user has connected. IMMEDIATELY start the interview in ${applicationData.language || 'English'}. Introduce yourself and ask the first question.`;
                                 sessionPromiseRef.current?.then(session => {
                                     console.log("Sending kickstart prompt...");
@@ -545,7 +670,12 @@ ${resumeContext}
                         // 1. Audio Output
                         const audioData = msg.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
                         if (audioData) {
+                            // Play subtle sound when AI starts a new response (only on first chunk)
+                            if (!isAiSpeaking) {
+                                playAiStartSound();
+                            }
                             setIsAiSpeaking(true);
+                            setCanSpeak(false); // AI is speaking, user should wait
                             const ctx = outputAudioCtxRef.current!;
                             nextStartTimeRef.current = Math.max(nextStartTimeRef.current, ctx.currentTime);
                             
@@ -595,9 +725,12 @@ ${resumeContext}
                                 return "";
                             });
                             
-                            // Flush AI Transcript if any
+                            // Flush AI Transcript if any AND show finalized subtitle
                             setCurrentOutputTrans(currOut => {
                                 if (currOut.trim()) {
+                                    // Show finalized AI text as subtitle
+                                    setFinalizedAiText(currOut.trim());
+                                    
                                     setTranscriptHistory(h => {
                                         // Deduplicate: Don't add if same as last AI message
                                         const last = h[h.length - 1];
@@ -609,6 +742,13 @@ ${resumeContext}
                                 }
                                 return "";
                             });
+                            
+                            // UX: Show "can speak" indicator after AI turn completes
+                            setTimeout(() => {
+                                if (isMountedRef.current) {
+                                    setCanSpeak(true);
+                                }
+                            }, 500);
 
                             if (isInterrupted) {
                                 sourcesRef.current.forEach(s => s.stop());
@@ -766,12 +906,25 @@ ${resumeContext}
             {/* Main Visualizer Area */}
             <main className="relative z-10 flex-1 flex flex-col items-center justify-center p-4 gap-8">
                 
-                {/* Status Label */}
-                <div className="h-8 flex items-center justify-center">
+                {/* Status Label with "Can Speak" Indicator */}
+                <div className="h-12 flex flex-col items-center justify-center gap-1">
                     {status === 'CONNECTING' && <span className="text-sm text-neutral-500 animate-pulse">CONNECTING TO GEMINI LIVE...</span>}
                     {status === 'RECONNECTING' && <span className="text-sm text-yellow-500 animate-pulse">CONNECTION LOST. RECONNECTING...</span>}
-                    {status === 'CONNECTED' && isAiSpeaking && <span className="text-sm text-cyan-400 font-bold tracking-widest">INTERVIEWER SPEAKING</span>}
-                    {status === 'CONNECTED' && !isAiSpeaking && <span className="text-sm text-green-400 font-bold tracking-widest">LISTENING...</span>}
+                    {status === 'CONNECTED' && isAiSpeaking && (
+                        <>
+                            <span className="text-sm text-cyan-400 font-bold tracking-widest">INTERVIEWER SPEAKING</span>
+                            <span className="text-xs text-neutral-500">Подождите...</span>
+                        </>
+                    )}
+                    {status === 'CONNECTED' && !isAiSpeaking && canSpeak && (
+                        <>
+                            <span className="text-sm text-green-400 font-bold tracking-widest animate-pulse">ВАША ОЧЕРЕДЬ</span>
+                            <span className="text-xs text-green-300/70">Можете говорить</span>
+                        </>
+                    )}
+                    {status === 'CONNECTED' && !isAiSpeaking && !canSpeak && (
+                        <span className="text-sm text-neutral-400 animate-pulse">PROCESSING...</span>
+                    )}
                 </div>
 
                 {/* The Canvas Visualizer */}
@@ -782,16 +935,16 @@ ${resumeContext}
                     />
       </div>
 
-                {/* Subtitles / Question */}
+                {/* Subtitles / Question - Show real-time streaming text */}
                 <div className="w-full max-w-3xl text-center space-y-6 min-h-[150px]">
-                    {/* AI Output */}
-                    <h2 className="text-2xl md:text-3xl font-light text-white leading-snug drop-shadow-lg transition-opacity duration-500">
-                        {currentOutputTrans || (transcriptHistory.slice().reverse().find(t => t.speaker === Speaker.AI)?.text)}
+                    {/* AI Output - Show streaming text in real-time */}
+                    <h2 className="text-2xl md:text-3xl font-light text-white leading-snug drop-shadow-lg transition-all duration-300">
+                        {currentOutputTrans || finalizedAiText || (transcriptHistory.slice().reverse().find(t => t.speaker === Speaker.AI)?.text) || ""}
                     </h2>
 
                     {/* User Live Transcript Notice */}
                     <p className="text-sm text-neutral-500 italic opacity-80 min-h-[1.5em]">
-                        Ваша транскрипция скрыта для приватности, но система продолжает вас слышать.
+                        {canSpeak ? "Говорите — система вас слушает" : "Ваша транскрипция скрыта для приватности"}
                     </p>
                 </div>
 
