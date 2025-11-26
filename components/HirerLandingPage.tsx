@@ -178,11 +178,11 @@ const HirerLandingPage: React.FC<HirerLandingPageProps> = ({ setRoute }) => {
             </button>
           </div>
 
-          {/* Stats */}
+          {/* Features */}
           <div style={fadeIn(400)} className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
             {[
-              { value: "500+", label: "Компаний" },
-              { value: "50K+", label: "Интервью" },
+              { value: "24/7", label: "Интервью" },
+              { value: "15 мин", label: "На кандидата" },
               { value: "90%", label: "Экономия времени" },
             ].map((stat, i) => (
               <div key={i} className="text-center">
@@ -273,7 +273,7 @@ const HirerLandingPage: React.FC<HirerLandingPageProps> = ({ setRoute }) => {
           <div className="p-12 rounded-3xl bg-gradient-to-br from-purple-500/20 to-pink-500/20 border border-purple-500/20">
             <h2 className="text-3xl sm:text-4xl font-bold mb-4">Готовы начать?</h2>
             <p className="text-neutral-400 mb-8 max-w-xl mx-auto">
-              Присоединяйтесь к сотням компаний, которые уже автоматизировали найм с Wind AI
+              Автоматизируйте первичный скрининг кандидатов с помощью AI-интервьюера
             </p>
             <button 
               onClick={openHirerLogin}

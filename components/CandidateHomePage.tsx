@@ -73,7 +73,7 @@ const CandidateHomePage: React.FC<CandidateHomePageProps> = ({
             </span>
           </h1>
           <p className="text-lg text-neutral-400 max-w-xl mx-auto">
-            Пройдите одно AI-интервью и получите доступ к вакансиям от лучших компаний мира. 
+            Пройдите одно AI-интервью и получите универсальный профиль для всех вакансий. 
             Никаких повторных собеседований — ваш профиль работает на вас.
           </p>
         </div>
@@ -83,7 +83,7 @@ const CandidateHomePage: React.FC<CandidateHomePageProps> = ({
           {[
             { icon: <PlayIcon />, title: '1. Пройдите интервью', desc: '15-20 минут с AI-интервьюером. Покажите свои навыки.' },
             { icon: <CheckBadgeIcon />, title: '2. Получите профиль', desc: 'AI оценит ваши компетенции и создаст универсальный профиль.' },
-            { icon: <RocketIcon />, title: '3. Получайте офферы', desc: 'Компании сами найдут вас. Вы выбираете лучшие предложения.' },
+            { icon: <RocketIcon />, title: '3. Получайте офферы', desc: 'Работодатели видят ваш профиль. Вы выбираете предложения.' },
           ].map((step, i) => (
             <div key={i} className="p-6 rounded-2xl bg-white/[0.02] border border-white/10 text-left">
               <div className="w-12 h-12 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center mb-4">
@@ -109,12 +109,12 @@ const CandidateHomePage: React.FC<CandidateHomePageProps> = ({
           </p>
         </div>
 
-        {/* Stats */}
+        {/* Features */}
         <div style={fadeIn(600)} className="mt-16 grid grid-cols-3 gap-8 max-w-2xl mx-auto">
           {[
-            { value: '500+', label: 'Компаний' },
-            { value: '10K+', label: 'Вакансий' },
-            { value: '$120K', label: 'Средняя зарплата' },
+            { value: '15 мин', label: 'Интервью' },
+            { value: '24/7', label: 'Доступность' },
+            { value: 'AI', label: 'Оценка' },
           ].map((stat, i) => (
             <div key={i} className="text-center">
               <p className="text-3xl font-bold bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">{stat.value}</p>

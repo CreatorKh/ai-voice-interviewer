@@ -122,6 +122,7 @@ const TEAM_MEMBERS = [
     position: "Team Lead Antifraud",
     skills: ["Fraud Detection", "Risk Analysis", "Team Management", "Banking Systems"],
     linkedin: "https://linkedin.com/in/khurshid-khusanboev",
+    avatar: null, // Will show initials with gradient
   },
   {
     name: "Жамшид Хусанбаев",
@@ -130,6 +131,7 @@ const TEAM_MEMBERS = [
     position: "Seller Development Manager",
     skills: ["E-commerce", "Business Strategy", "Partner Relations", "Growth"],
     linkedin: "https://linkedin.com/in/jamshid-khusanbaev",
+    avatar: null, // Will show initials with gradient
   },
 ];
 
@@ -245,7 +247,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           </h1>
           
           <p style={fadeIn(200)} className="text-lg sm:text-xl text-neutral-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Пройдите одно AI-интервью и получите доступ к вакансиям от лучших компаний. 
+            Пройдите одно AI-интервью и получите универсальный профиль для всех вакансий. 
             <span className="text-white font-semibold">Без повторных собеседований</span> — ваш профиль работает на вас.
           </p>
           
@@ -267,10 +269,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           {/* 3D Stats Cards */}
           <div style={fadeIn(400)} className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6 max-w-4xl mx-auto">
             {[
-              { value: '500+', label: 'Компаний' },
-              { value: '10K+', label: 'Вакансий' },
-              { value: '24/7', label: 'Доступность' },
               { value: '15 мин', label: 'Одно интервью' },
+              { value: '24/7', label: 'Доступность' },
+              { value: '90%', label: 'Экономия времени' },
+              { value: 'AI', label: 'Объективная оценка' },
             ].map((stat, i) => (
               <TiltCard key={i} intensity={8}>
                 <div className="p-6 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
@@ -336,23 +338,23 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             <TiltCard intensity={5}>
               <div className="h-full p-8 md:p-10 rounded-3xl bg-gradient-to-br from-emerald-950/30 to-emerald-950/10 border border-emerald-500/20 backdrop-blur-sm">
                 <h3 className="text-emerald-400 font-semibold text-sm mb-4">РЕШЕНИЕ</h3>
-                <h4 className="text-2xl md:text-3xl font-bold mb-6">Одно интервью — доступ ко всем вакансиям</h4>
+                <h4 className="text-2xl md:text-3xl font-bold mb-6">Wind AI — AI-интервьюер нового поколения</h4>
                 <ul className="space-y-4 text-neutral-300">
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Одно интервью</strong> — кандидат проходит его один раз и получает универсальный профиль</span>
+                    <span><strong>Голосовые интервью 24/7</strong> — кандидат выбирает удобное время</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>AI-матчинг</strong> — система автоматически подбирает подходящие вакансии</span>
+                    <span><strong>Структурированная оценка</strong> — одинаковые критерии для всех кандидатов</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Talent Pool</strong> — компании находят верифицированных кандидатов</span>
+                    <span><strong>Мгновенный фидбек</strong> — детальный отчёт сразу после интервью</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Антифрод-система</strong> — гарантия честности интервью</span>
+                    <span><strong>Антифрод-система</strong> — анализ видео, голоса и поведения</span>
                   </li>
                 </ul>
               </div>
@@ -363,8 +365,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           <TiltCard intensity={3} className="mt-8">
             <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center backdrop-blur-sm">
               <p className="text-lg text-neutral-300">
-                <strong className="text-white">Как у Mercor:</strong> одна точка входа для кандидатов, 
-                мгновенный доступ к верифицированным специалистам для компаний.
+                <strong className="text-white">Ожидаемый эффект:</strong> сокращение времени найма с 45 дней до 5, 
+                снижение нагрузки на HR-команду на 70%, объективная оценка всех кандидатов.
               </p>
             </div>
           </TiltCard>
@@ -386,7 +388,21 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               <TiltCard key={i} intensity={8}>
                 <div className="p-8 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 backdrop-blur-sm h-full">
                   <div className="flex items-start gap-5 mb-6">
-                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-2xl font-bold text-black shrink-0 shadow-lg shadow-emerald-500/20">
+                    {/* Avatar from LinkedIn or fallback to initials */}
+                    {member.avatar ? (
+                      <img 
+                        src={member.avatar} 
+                        alt={member.name}
+                        className="w-20 h-20 rounded-2xl object-cover shrink-0 shadow-lg shadow-emerald-500/20 border-2 border-emerald-500/30"
+                        onError={(e) => {
+                          // Fallback to initials if image fails
+                          const target = e.target as HTMLImageElement;
+                          target.style.display = 'none';
+                          target.nextElementSibling?.classList.remove('hidden');
+                        }}
+                      />
+                    ) : null}
+                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-2xl font-bold text-black shrink-0 shadow-lg shadow-emerald-500/20 ${member.avatar ? 'hidden' : ''}`}>
                       {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
                     </div>
                     <div>
@@ -413,7 +429,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
                       className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
                     >
                       <LinkedInIcon className="w-4 h-4" />
-                      LinkedIn
+                      LinkedIn Profile
                     </a>
                   )}
                 </div>
