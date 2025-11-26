@@ -114,6 +114,12 @@ interface LandingPageProps {
   setRoute: (route: AppRoute) => void;
 }
 
+// Helper to generate avatar URL from UI Avatars service
+const getAvatarUrl = (name: string, size = 200) => {
+  const initials = name.split(' ').map(n => n[0]).join('');
+  return `https://ui-avatars.com/api/?name=${encodeURIComponent(initials)}&size=${size}&background=10b981&color=000&bold=true&format=svg`;
+};
+
 const TEAM_MEMBERS = [
   {
     name: "Хуршид Хусанбоев",
@@ -122,7 +128,9 @@ const TEAM_MEMBERS = [
     position: "Team Lead Antifraud",
     skills: ["Fraud Detection", "Risk Analysis", "Team Management", "Banking Systems"],
     linkedin: "https://linkedin.com/in/khurshid-khusanboev",
-    avatar: null, // Will show initials with gradient
+    // Загрузите фото в public/images/team/khurshid.jpg и раскомментируйте:
+    // avatar: "/images/team/khurshid.jpg",
+    avatar: null, // Использует UI Avatars
   },
   {
     name: "Жамшид Хусанбаев",
@@ -131,7 +139,9 @@ const TEAM_MEMBERS = [
     position: "Seller Development Manager",
     skills: ["E-commerce", "Business Strategy", "Partner Relations", "Growth"],
     linkedin: "https://linkedin.com/in/jamshid-khusanbaev",
-    avatar: null, // Will show initials with gradient
+    // Загрузите фото в public/images/team/jamshid.jpg и раскомментируйте:
+    // avatar: "/images/team/jamshid.jpg",
+    avatar: null, // Использует UI Avatars
   },
 ];
 
@@ -388,23 +398,17 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               <TiltCard key={i} intensity={8}>
                 <div className="p-8 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 backdrop-blur-sm h-full">
                   <div className="flex items-start gap-5 mb-6">
-                    {/* Avatar from LinkedIn or fallback to initials */}
-                    {member.avatar ? (
-                      <img 
-                        src={member.avatar} 
-                        alt={member.name}
-                        className="w-20 h-20 rounded-2xl object-cover shrink-0 shadow-lg shadow-emerald-500/20 border-2 border-emerald-500/30"
-                        onError={(e) => {
-                          // Fallback to initials if image fails
-                          const target = e.target as HTMLImageElement;
-                          target.style.display = 'none';
-                          target.nextElementSibling?.classList.remove('hidden');
-                        }}
-                      />
-                    ) : null}
-                    <div className={`w-20 h-20 rounded-2xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center text-2xl font-bold text-black shrink-0 shadow-lg shadow-emerald-500/20 ${member.avatar ? 'hidden' : ''}`}>
-                      {member.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                    </div>
+                    {/* Avatar - uses custom photo or UI Avatars service */}
+                    <img 
+                      src={member.avatar || getAvatarUrl(member.name, 200)} 
+                      alt={member.name}
+                      className="w-20 h-20 rounded-2xl object-cover shrink-0 shadow-lg shadow-emerald-500/20 border-2 border-emerald-500/30"
+                      onError={(e) => {
+                        // Fallback to UI Avatars if custom image fails
+                        const target = e.target as HTMLImageElement;
+                        target.src = getAvatarUrl(member.name, 200);
+                      }}
+                    />
                     <div>
                       <h4 className="font-bold text-xl">{member.name}</h4>
                       <p className="text-emerald-400 font-medium">{member.role}</p>
