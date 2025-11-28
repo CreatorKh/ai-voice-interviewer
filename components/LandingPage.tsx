@@ -503,31 +503,31 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             
             {[
               { 
-                date: 'Начало ноября 2024', 
+                date: 'Начало ноября 2025', 
                 title: 'Идея и Исследование', 
                 desc: 'Старт разработки. Анализ проблем найма, формирование концепции "Одного интервью".',
                 status: 'done'
               },
               { 
-                date: 'Середина ноября 2024', 
+                date: 'Середина ноября 2025', 
                 title: 'Разработка ядра', 
                 desc: 'Создание голосового AI-движка, интеграция LLM с низкой задержкой (<500ms).',
                 status: 'done'
               },
               { 
-                date: 'Конец ноября 2024', 
+                date: 'Конец ноября 2025', 
                 title: 'MVP и Антифрод', 
                 desc: 'Внедрение системы оценки рисков, дашборды для кандидатов и HR, система матчинга.',
                 status: 'current'
               },
               { 
-                date: 'Декабрь 2024', 
+                date: 'Декабрь 2025', 
                 title: 'Запуск и Пилот', 
                 desc: 'Первые боевые интервью, сбор фидбека, расширение базы вакансий.',
                 status: 'future'
               },
               { 
-                date: 'Q1 2025', 
+                date: 'Q1 2026', 
                 title: 'Масштабирование', 
                 desc: 'Интеграции с ATS (Greenhouse, Lever), мобильное приложение, выход на новые рынки.',
                 status: 'future'
@@ -668,7 +668,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             <WindLogoCompact size={32} />
             <span className="font-bold">Wind AI</span>
           </div>
-          <p className="text-neutral-600 text-sm">© 2024 Wind AI. Все права защищены.</p>
+          <p className="text-neutral-600 text-sm">© 2025 Wind AI. Все права защищены.</p>
         </div>
       </footer>
 

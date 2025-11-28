@@ -297,7 +297,7 @@ const HirerLandingPage: React.FC<HirerLandingPageProps> = ({ setRoute }) => {
             <a href="#" className="hover:text-white transition-colors">Документация</a>
             <a href="#" className="hover:text-white transition-colors">Поддержка</a>
           </div>
-          <p className="text-sm text-neutral-500">© 2024 Wind AI. Все права защищены.</p>
+          <p className="text-sm text-neutral-500">© 2025 Wind AI. Все права защищены.</p>
         </div>
       </footer>
       
