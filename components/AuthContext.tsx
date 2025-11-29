@@ -21,7 +21,7 @@ interface AuthContextType {
   login: (data: OnboardingData) => void;
   loginAsMockUser: () => void;
   updateProfileData: (data: Partial<ProfileData>) => void;
-  
+
   // Hirer specific
   hirerData: HirerData | null;
   loginAsHirer: (data: HirerData) => void;

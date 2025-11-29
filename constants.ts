@@ -70,8 +70,21 @@ export const JOBS: Job[] = [
   { id: 7, title: 'AI Ethics Researcher', contract_type: 'Part-time', description: 'Investigate the ethical implications of AI systems, develop guidelines, and contribute to responsible AI development.', rate_min: 50, rate_max: 75, currency: 'USD', hired_this_month: 0, posted_days_ago: 30 },
   { id: 8, title: 'Risk Analyst', contract_type: 'Contract', description: 'Identify and analyze potential risks to the organization\'s assets, earning capacity, or success.', rate_min: 65, rate_max: 85, currency: 'USD', hired_this_month: 6, posted_days_ago: 10 },
   
-  // Cybersecurity Analyst with levels
-  { id: 9, title: 'Cybersecurity Analyst', contract_type: 'Full-time', description: 'Protect company hardware, software, and networks from cybercriminals. Monitor networks for security breaches.', rate_min: 95, rate_max: 130, currency: 'USD', hired_this_month: 4, posted_days_ago: 12, hasLevels: true, baseTitle: 'Cybersecurity Analyst' },
+  // Cybersecurity Analyst with levels and specializations
+  { 
+    id: 9, 
+    title: 'Cybersecurity Analyst', 
+    contract_type: 'Full-time', 
+    description: 'Protect company hardware, software, and networks from cybercriminals. Monitor networks for security breaches.', 
+    rate_min: 95, 
+    rate_max: 130, 
+    currency: 'USD', 
+    hired_this_month: 4, 
+    posted_days_ago: 12, 
+    hasLevels: true, 
+    baseTitle: 'Cybersecurity Analyst',
+    specializations: ['SOC (Security Operations)', 'DLP (Data Loss Prevention)', 'Network Security', 'AppSec (Application Security)', 'GRC (Compliance)']
+  },
   
   { id: 10, title: 'SQL Specialist / DBA', contract_type: 'Contract', description: 'Deep expertise in SQL, database optimization, schema design, and performance tuning. PostgreSQL/MySQL focus.', rate_min: 90, rate_max: 150, currency: 'USD', hired_this_month: 2, posted_days_ago: 1 },
   { id: 11, title: 'Analytics Engineer (SQL Focused)', contract_type: 'Full-time', description: 'Bridge the gap between data engineering and data analysis. Strong SQL, DBT, and data modeling skills required.', rate_min: 110, rate_max: 160, currency: 'USD', hired_this_month: 6, posted_days_ago: 3 },

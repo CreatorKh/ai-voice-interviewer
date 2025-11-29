@@ -30,6 +30,7 @@ type QuestionEntry = {
   text: string;
   stage: Stage;
   difficulty: Difficulty;
+  tags?: string[]; // Tags for specialization (e.g., "SOC", "DLP")
 };
 
 export const QUESTION_BANK: Record<RoleKey, QuestionEntry[]> = {
@@ -1058,31 +1059,46 @@ export const QUESTION_BANK: Record<RoleKey, QuestionEntry[]> = {
 
   // ==== CYBERSECURITY ANALYST (Junior/Middle/Senior) ====
   // Difficulty: 1-2 = Junior, 3 = Middle, 4-5 = Senior
+  // EXPANDED: 80+ questions to prevent repetition
   cybersecurity: [
-    // ========== BACKGROUND ==========
+    // ========== BACKGROUND (15 questions) ==========
     // Junior
     { stage: "Background", difficulty: 1, text: "Расскажите о вашем опыте в области информационной безопасности." },
     { stage: "Background", difficulty: 1, text: "Что привлекло вас в кибербезопасность?" },
     { stage: "Background", difficulty: 1, text: "Какие курсы или сертификации вы проходили?" },
+    { stage: "Background", difficulty: 1, text: "Как вы начали изучать информационную безопасность?" },
+    { stage: "Background", difficulty: 1, text: "Какие CTF-соревнования вы проходили? Какие задачи решали?" },
     { stage: "Background", difficulty: 2, text: "В каких направлениях ИБ вы работали: пентест, SOC, compliance, AppSec?" },
     { stage: "Background", difficulty: 2, text: "Какие инструменты безопасности вы использовали?" },
+    { stage: "Background", difficulty: 2, text: "Расскажите о вашем домашнем лабораторном стенде для практики ИБ." },
+    { stage: "Background", difficulty: 2, text: "С какими операционными системами вы работали в контексте безопасности?" },
     // Middle
     { stage: "Background", difficulty: 3, text: "Расскажите о самом интересном инциденте, который вы расследовали." },
     { stage: "Background", difficulty: 3, text: "Как была организована команда ИБ в вашей компании?" },
+    { stage: "Background", difficulty: 3, text: "Какой был ваш самый сложный проект в области безопасности?" },
     // Senior
     { stage: "Background", difficulty: 4, text: "Расскажите о вашем опыте построения security-процессов с нуля." },
+    { stage: "Background", difficulty: 4, text: "Как вы взаимодействовали с руководством по вопросам ИБ-бюджета?" },
     { stage: "Background", difficulty: 5, text: "Как вы выстраивали security culture в организации?" },
 
-    // ========== CORE ==========
+    // ========== CORE (30 questions) ==========
     // Junior
     { stage: "Core", difficulty: 1, text: "Объясните разницу между аутентификацией и авторизацией." },
     { stage: "Core", difficulty: 1, text: "Что такое firewall и как он работает?" },
     { stage: "Core", difficulty: 1, text: "Что такое VPN и зачем он нужен?" },
     { stage: "Core", difficulty: 1, text: "Объясните модель CIA (Confidentiality, Integrity, Availability)." },
+    { stage: "Core", difficulty: 1, text: "Что такое malware? Какие виды вредоносного ПО вы знаете?" },
+    { stage: "Core", difficulty: 1, text: "Что такое хэширование? Чем отличается от шифрования?" },
+    { stage: "Core", difficulty: 1, text: "Объясните разницу между симметричным и асимметричным шифрованием." },
+    { stage: "Core", difficulty: 1, text: "Что такое порт? Какие порты используют популярные сервисы?" },
     { stage: "Core", difficulty: 2, text: "Какие основные типы кибератак вы знаете? Приведите примеры." },
     { stage: "Core", difficulty: 2, text: "Что такое SQL-инъекция и как от неё защититься?" },
     { stage: "Core", difficulty: 2, text: "Что такое фишинг? Какие виды бывают?" },
     { stage: "Core", difficulty: 2, text: "Как работает двухфакторная аутентификация?" },
+    { stage: "Core", difficulty: 2, text: "Что такое DDoS-атака? Как от неё защищаться?" },
+    { stage: "Core", difficulty: 2, text: "Что такое брутфорс-атака? Как её предотвратить?" },
+    { stage: "Core", difficulty: 2, text: "Объясните принцип наименьших привилегий (Least Privilege)." },
+    { stage: "Core", difficulty: 2, text: "Что такое IDS и IPS? В чём разница?" },
     // Middle
     { stage: "Core", difficulty: 3, text: "Как работает SSL/TLS? Объясните процесс handshake." },
     { stage: "Core", difficulty: 3, text: "Что такое XSS и CSRF? Как от них защищаться?" },
@@ -1090,58 +1106,155 @@ export const QUESTION_BANK: Record<RoleKey, QuestionEntry[]> = {
     { stage: "Core", difficulty: 3, text: "Что такое OWASP Top 10? Перечислите основные уязвимости." },
     { stage: "Core", difficulty: 3, text: "Как работает SIEM-система?" },
     { stage: "Core", difficulty: 3, text: "Что такое Zero Trust архитектура?" },
+    { stage: "Core", difficulty: 3, text: "Объясните разницу между vulnerability и exploit." },
+    { stage: "Core", difficulty: 3, text: "Что такое SSRF? Приведите примеры эксплуатации." },
+    { stage: "Core", difficulty: 3, text: "Как работает Kerberos-аутентификация?" },
+    { stage: "Core", difficulty: 3, text: "Что такое LDAP injection?" },
     // Senior
     { stage: "Core", difficulty: 4, text: "Как вы проектируете security architecture для микросервисов?" },
     { stage: "Core", difficulty: 4, text: "Расскажите о вашем опыте с PKI и certificate management." },
+    { stage: "Core", difficulty: 4, text: "Как работает OAuth 2.0 и OpenID Connect? Какие уязвимости?" },
     { stage: "Core", difficulty: 5, text: "Как вы организуете security для multi-cloud environment?" },
 
-    // ========== DEEP DIVE ==========
+    // ========== DEEP DIVE (20 questions) ==========
+    // Junior
+    { stage: "DeepDive", difficulty: 2, text: "Какие инструменты сканирования уязвимостей вы знаете?" },
+    { stage: "DeepDive", difficulty: 2, text: "Как вы анализируете сетевой трафик? Какие инструменты используете?" },
     // Middle
     { stage: "DeepDive", difficulty: 3, text: "Как вы проводите анализ уязвимостей? Какие инструменты используете?" },
     { stage: "DeepDive", difficulty: 3, text: "Расскажите о вашем опыте работы с SIEM (Splunk, ELK, QRadar)." },
     { stage: "DeepDive", difficulty: 3, text: "Как вы настраиваете мониторинг безопасности?" },
+    { stage: "DeepDive", difficulty: 3, text: "Расскажите о вашем опыте с Nmap, Wireshark, Burp Suite." },
+    { stage: "DeepDive", difficulty: 3, text: "Как вы проводите анализ логов? На что обращаете внимание?" },
+    { stage: "DeepDive", difficulty: 3, text: "Расскажите о вашем опыте с endpoint security решениями." },
     // Senior
     { stage: "DeepDive", difficulty: 4, text: "Расскажите о случае, когда вы обнаружили и устранили уязвимость." },
     { stage: "DeepDive", difficulty: 4, text: "Как вы организуете Incident Response процесс?" },
     { stage: "DeepDive", difficulty: 4, text: "Расскажите о вашем опыте с penetration testing." },
     { stage: "DeepDive", difficulty: 4, text: "Как вы проводите security code review?" },
+    { stage: "DeepDive", difficulty: 4, text: "Расскажите о вашем опыте с forensics и анализом инцидентов." },
+    { stage: "DeepDive", difficulty: 4, text: "Как вы настраиваете hardening серверов?" },
     { stage: "DeepDive", difficulty: 5, text: "Расскажите о вашем опыте с threat modeling. Какие фреймворки?" },
     { stage: "DeepDive", difficulty: 5, text: "Как вы интегрируете безопасность в CI/CD (DevSecOps)?" },
     { stage: "DeepDive", difficulty: 5, text: "Расскажите о вашем опыте с red team / blue team exercises." },
     { stage: "DeepDive", difficulty: 5, text: "Как вы строите threat intelligence программу?" },
+    { stage: "DeepDive", difficulty: 5, text: "Расскажите о вашем опыте с SOAR-платформами." },
+    { stage: "DeepDive", difficulty: 5, text: "Как вы организуете vulnerability management программу?" },
 
-    // ========== CASE ==========
+    // ========== CASE (20 questions) ==========
     // Junior
+    { stage: "Case", difficulty: 1, text: "Коллега просит ваш пароль для срочной задачи. Ваши действия?" },
     { stage: "Case", difficulty: 2, text: "Пользователь сообщает о подозрительном email. Ваши действия?" },
     { stage: "Case", difficulty: 2, text: "Как бы вы объяснили важность паролей обычному сотруднику?" },
+    { stage: "Case", difficulty: 2, text: "Сотрудник нашёл флешку на парковке. Что вы ему посоветуете?" },
+    { stage: "Case", difficulty: 2, text: "Как бы вы провели базовый security awareness тренинг?" },
     // Middle
     { stage: "Case", difficulty: 3, text: "Вы обнаружили подозрительную активность в логах. Ваши действия?" },
     { stage: "Case", difficulty: 3, text: "Как бы вы настроили WAF для защиты веб-приложения?" },
     { stage: "Case", difficulty: 3, text: "Сотрудник потерял ноутбук с корпоративными данными. Ваши действия?" },
+    { stage: "Case", difficulty: 3, text: "Как бы вы организовали сегментацию корпоративной сети?" },
+    { stage: "Case", difficulty: 3, text: "Разработчики хотят отключить HTTPS для тестирования. Ваша реакция?" },
+    { stage: "Case", difficulty: 3, text: "Как бы вы настроили безопасный удалённый доступ для сотрудников?" },
     // Senior
     { stage: "Case", difficulty: 4, text: "Как организовать защиту от OWASP Top 10?" },
     { stage: "Case", difficulty: 4, text: "Компания подверглась фишинговой атаке. Как расследуете?" },
     { stage: "Case", difficulty: 4, text: "Как бы вы организовали bug bounty программу?" },
+    { stage: "Case", difficulty: 4, text: "Как бы вы провели security assessment для M&A сделки?" },
     { stage: "Case", difficulty: 5, text: "Как спроектировать IDS/IPS для корпоративной сети?" },
     { stage: "Case", difficulty: 5, text: "Как бы вы организовали security для IoT устройств?" },
     { stage: "Case", difficulty: 5, text: "Как подготовить компанию к SOC 2 аудиту?" },
+    { stage: "Case", difficulty: 5, text: "Как бы вы построили Security Operations Center с нуля?" },
+    { stage: "Case", difficulty: 5, text: "Как организовать защиту от ransomware на уровне enterprise?" },
 
-    // ========== DEBUG ==========
+    // ========== DEBUG (12 questions) ==========
     // Junior
+    { stage: "Debug", difficulty: 1, text: "Пользователь не может зайти в аккаунт. С чего начнёте диагностику?" },
     { stage: "Debug", difficulty: 2, text: "Антивирус заблокировал легитимную программу. Как разберётесь?" },
+    { stage: "Debug", difficulty: 2, text: "Сайт компании недоступен. Как определить, это DDoS или сбой?" },
     // Middle
     { stage: "Debug", difficulty: 3, text: "Пользователи жалуются на странное поведение аккаунтов. Как расследуете?" },
     { stage: "Debug", difficulty: 3, text: "SIEM генерирует много ложных срабатываний. Как оптимизируете?" },
+    { stage: "Debug", difficulty: 3, text: "VPN работает нестабильно. Как будете диагностировать?" },
+    { stage: "Debug", difficulty: 3, text: "Обнаружен несанкционированный сервер в сети. Ваши действия?" },
     // Senior
     { stage: "Debug", difficulty: 4, text: "В системе обнаружен malware. Опишите процесс анализа и устранения." },
     { stage: "Debug", difficulty: 4, text: "Подозреваете утечку данных. Как будете расследовать?" },
+    { stage: "Debug", difficulty: 4, text: "Обнаружена криптомайнер на серверах. Как найдёте источник?" },
     { stage: "Debug", difficulty: 5, text: "Обнаружен APT (Advanced Persistent Threat). Ваши действия?" },
+    { stage: "Debug", difficulty: 5, text: "Подозреваете инсайдерскую угрозу. Как будете расследовать?" },
 
-    // ========== WRAPUP ==========
+    // ========== WRAPUP (8 questions) ==========
     { stage: "WrapUp", difficulty: 1, text: "Какие сертификации в ИБ вас интересуют?" },
+    { stage: "WrapUp", difficulty: 1, text: "Какие ресурсы вы используете для обучения ИБ?" },
     { stage: "WrapUp", difficulty: 2, text: "Какие сертификации у вас есть или планируете получить?" },
+    { stage: "WrapUp", difficulty: 2, text: "Как вы относитесь к этичному хакингу?" },
     { stage: "WrapUp", difficulty: 3, text: "Как вы следите за новыми угрозами? Какие ресурсы используете?" },
+    { stage: "WrapUp", difficulty: 3, text: "Какие конференции по ИБ вы посещали или хотели бы посетить?" },
     { stage: "WrapUp", difficulty: 4, text: "Какие тренды в кибербезопасности вы считаете важными?" },
+    { stage: "WrapUp", difficulty: 5, text: "Как вы видите развитие ИБ в контексте AI и ML?" },
+
+    // ========== SOC (Security Operations Center) SPECIALIZATION ==========
+    // Junior
+    { stage: "Core", difficulty: 2, text: "Что такое SOC? Каковы его основные функции?", tags: ["SOC"] },
+    { stage: "Core", difficulty: 2, text: "Что такое лог? Какие типы логов вы знаете?", tags: ["SOC"] },
+    { stage: "DeepDive", difficulty: 2, text: "Как вы анализируете алерт от антивируса?", tags: ["SOC"] },
+    // Middle
+    { stage: "Core", difficulty: 3, text: "Опишите жизненный цикл инцидента (Incident Lifecycle) по NIST или SANS.", tags: ["SOC"] },
+    { stage: "DeepDive", difficulty: 3, text: "Как вы настраиваете правила корреляции в SIEM?", tags: ["SOC"] },
+    { stage: "Case", difficulty: 3, text: "SIEM показывает множественные неудачные попытки входа. Ваши действия?", tags: ["SOC"] },
+    { stage: "Debug", difficulty: 3, text: "SIEM перестал получать логи с критического сервера. Как будете чинить?", tags: ["SOC"] },
+    // Senior
+    { stage: "DeepDive", difficulty: 4, text: "Как вы автоматизируете реагирование на инциденты (SOAR)?", tags: ["SOC"] },
+    { stage: "Case", difficulty: 5, text: "Как бы вы построили SOC с нуля в компании на 5000 человек?", tags: ["SOC"] },
+
+    // ========== DLP (Data Loss Prevention) SPECIALIZATION ==========
+    // Junior
+    { stage: "Core", difficulty: 2, text: "Что такое DLP-система? От чего она защищает?", tags: ["DLP"] },
+    { stage: "Core", difficulty: 2, text: "Что такое персональные данные (PII)?", tags: ["DLP"] },
+    // Middle
+    { stage: "Core", difficulty: 3, text: "Какие методы обнаружения утечек (fingerprinting, regex) вы знаете?", tags: ["DLP"] },
+    { stage: "DeepDive", difficulty: 3, text: "Как настроить DLP-политику для защиты финансовых отчетов?", tags: ["DLP"] },
+    { stage: "Case", difficulty: 3, text: "Сотрудник пытается отправить базу клиентов на личную почту. Ваши действия?", tags: ["DLP"] },
+    // Senior
+    { stage: "DeepDive", difficulty: 4, text: "Как вы балансируете между безопасностью и приватностью сотрудников при внедрении DLP?", tags: ["DLP"] },
+    { stage: "Case", difficulty: 5, text: "Как внедрить DLP в облачной среде (Office 365, G Suite)?", tags: ["DLP"] },
+
+    // ========== NETWORK SECURITY SPECIALIZATION ==========
+    // Junior
+    { stage: "Core", difficulty: 2, text: "Что такое DMZ? Зачем она нужна?", tags: ["Network"] },
+    { stage: "Core", difficulty: 2, text: "В чем разница между TCP и UDP?", tags: ["Network"] },
+    { stage: "Core", difficulty: 2, text: "Что такое NAT?", tags: ["Network"] },
+    // Middle
+    { stage: "Core", difficulty: 3, text: "Как работает IPSec VPN?", tags: ["Network"] },
+    { stage: "DeepDive", difficulty: 3, text: "Как вы анализируете PCAP-файл в Wireshark? Что ищете?", tags: ["Network"] },
+    { stage: "Case", difficulty: 3, text: "Обнаружен исходящий трафик на подозрительный IP. Ваши действия?", tags: ["Network"] },
+    // Senior
+    { stage: "DeepDive", difficulty: 4, text: "Как спроектировать защищенную сетевую архитектуру для гибридного облака?", tags: ["Network"] },
+    { stage: "Case", difficulty: 5, text: "Как защититься от BGP hijacking?", tags: ["Network"] },
+
+    // ========== APPSEC (Application Security) SPECIALIZATION ==========
+    // Junior
+    { stage: "Core", difficulty: 2, text: "Что такое input validation? Почему это важно?", tags: ["AppSec"] },
+    { stage: "Core", difficulty: 2, text: "Что такое HTTPS и зачем он нужен для веб-приложений?", tags: ["AppSec"] },
+    // Middle
+    { stage: "Core", difficulty: 3, text: "Объясните уязвимость SQL Injection и как её предотвратить (Prepared Statements).", tags: ["AppSec"] },
+    { stage: "DeepDive", difficulty: 3, text: "Как работает инструмент SAST (Static Application Security Testing)?", tags: ["AppSec"] },
+    { stage: "Case", difficulty: 3, text: "Разработчик хочет использовать библиотеку с известной уязвимостью. Ваши действия?", tags: ["AppSec"] },
+    // Senior
+    { stage: "DeepDive", difficulty: 4, text: "Как внедрить DevSecOps в существующий CI/CD пайплайн?", tags: ["AppSec"] },
+    { stage: "Case", difficulty: 5, text: "Как спроектировать безопасную архитектуру для микросервисного приложения?", tags: ["AppSec"] },
+
+    // ========== GRC (Governance, Risk, Compliance) SPECIALIZATION ==========
+    // Junior
+    { stage: "Core", difficulty: 2, text: "Что такое политика безопасности?" },
+    { stage: "Core", difficulty: 2, text: "Зачем нужны стандарты безопасности (ISO 27001, PCI DSS)?" },
+    // Middle
+    { stage: "Core", difficulty: 3, text: "Как вы проводите оценку рисков (Risk Assessment)?" },
+    { stage: "DeepDive", difficulty: 3, text: "Расскажите о требованиях PCI DSS к хранению данных карт." },
+    { stage: "Case", difficulty: 3, text: "Компания не проходит внешний аудит. Ваши первые шаги?" },
+    // Senior
+    { stage: "DeepDive", difficulty: 4, text: "Как выстроить процесс управления соответствием (Compliance Management)?" },
+    { stage: "Case", difficulty: 5, text: "Как подготовить компанию к сертификации по ISO 27001?" },
   ],
 
   // ==== E-COMMERCE SELLER MANAGER ====
@@ -1411,16 +1524,33 @@ export const QUESTION_BANK: Record<RoleKey, QuestionEntry[]> = {
 export function getQuestionForRoleAndStage(
   role: string,
   stage: Stage,
-  difficulty: Difficulty
+  difficulty: Difficulty,
+  specialization?: string // Optional specialization (e.g. "SOC")
 ): string | null {
   const key = roleToKey(role);
   if (!key) return null;
 
-  const candidates = QUESTION_BANK[key].filter(
+  let candidates = QUESTION_BANK[key].filter(
     (q) =>
       q.stage === stage &&
       Math.abs(q.difficulty - difficulty) <= 1 // допускаем +-1 уровень
   );
+
+  // Если выбрана специализация, фильтруем или приоритизируем
+  if (specialization && candidates.length > 0) {
+    // Ищем тег, соответствующий специализации (например, "SOC" в "SOC (Security Operations)")
+    // Упростим: ищем вхождение строки специализации в тегах вопроса
+    const specKeyword = specialization.split(' ')[0].toUpperCase(); // "SOC", "DLP"
+    
+    const specializedCandidates = candidates.filter(q => 
+      q.tags && q.tags.some(t => t.toUpperCase().includes(specKeyword))
+    );
+
+    // Если есть специализированные вопросы для этого этапа, используем их с высокой вероятностью (80%)
+    if (specializedCandidates.length > 0 && Math.random() < 0.8) {
+        candidates = specializedCandidates;
+    }
+  }
 
   if (!candidates.length) return null;
 

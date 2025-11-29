@@ -79,8 +79,8 @@ const HirerLandingPage: React.FC<HirerLandingPageProps> = ({ setRoute }) => {
     },
     {
       icon: <ChartIcon />,
-      title: "Объективная оценка",
-      description: "AI оценивает навыки по единым критериям. Никакой предвзятости, только данные."
+      title: "Поиск скрытых талантов",
+      description: "AI находит 'суперсилы' кандидата. Мы показываем не просто баллы, а реальные сильные стороны и потенциал."
     },
     {
       icon: <ShieldIcon />,

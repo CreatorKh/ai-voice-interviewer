@@ -106,10 +106,10 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
       {/* Tabs */}
       <div className="flex gap-1 p-1 bg-white/5 rounded-xl border border-white/10 w-fit">
         {tabs.map(tab => (
-          <button
+                <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={cn(
+                    className={cn(
               "flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all",
               activeTab === tab.id 
                 ? "bg-cyan-500 text-black" 
@@ -118,9 +118,9 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
           >
             {tab.icon}
             {tab.label}
-          </button>
-        ))}
-      </div>
+                </button>
+            ))}
+        </div>
 
       {/* Overview Tab */}
       {activeTab === 'overview' && (
@@ -169,7 +169,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
             ) : (
               <p className="text-neutral-500 text-center py-8">Нет данных. Проведите первое интервью.</p>
             )}
-          </div>
+      </div>
 
           {/* Recent Interviews */}
           <div className="p-6 rounded-2xl bg-white/[0.02] border border-white/10">
@@ -186,7 +186,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                         <p className="font-medium">{interview.application.name}</p>
                         <p className="text-xs text-neutral-400">{interview.job.title}</p>
                       </div>
-                    </div>
+                  </div>
                     <div className="flex items-center gap-4">
                       <span className={`text-sm font-bold ${(interview.evaluation?.scores?.overall || 0) >= 70 ? 'text-green-400' : 'text-neutral-400'}`}>
                         {interview.evaluation?.scores?.overall || 0}%
@@ -198,11 +198,11 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                           'bg-red-500/20 text-red-400'
                         }`}>
                           {interview.evaluation.finalVerdict}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
+                                      </span>
+                                  )}
+                              </div>
+                          </div>
+                      ))}
               </div>
             ) : (
               <p className="text-neutral-500 text-center py-8">Нет интервью</p>
@@ -238,7 +238,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                     {results.filter(r => r.job.id === job.id).length} интервью
                   </span>
                   <Button variant="outline" size="sm">Редактировать</Button>
-                </div>
+                  </div>
               </div>
             ))}
           </div>
@@ -255,7 +255,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                 <DownloadIcon /> Экспорт CSV
               </Button>
             </div>
-          </div>
+                          </div>
 
           {results.length > 0 ? (
             <div className="rounded-xl border border-white/10 overflow-hidden">
@@ -282,7 +282,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                             <p className="font-medium text-sm">{interview.application.name}</p>
                             <p className="text-xs text-neutral-500">{interview.application.email}</p>
                           </div>
-                        </div>
+                      </div>
                       </td>
                       <td className="p-4 text-sm">{interview.job.title}</td>
                       <td className="p-4 text-sm text-neutral-400">
@@ -313,14 +313,14 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                   ))}
                 </tbody>
               </table>
-            </div>
+                  </div>
           ) : (
             <div className="p-12 rounded-xl bg-white/[0.02] border border-white/10 text-center">
               <p className="text-neutral-400">Нет интервью</p>
               <p className="text-sm text-neutral-500 mt-1">Проведите первое интервью, чтобы увидеть данные здесь</p>
-            </div>
+                       </div>
           )}
-        </div>
+          </div>
       )}
 
       {/* Settings Tab */}
@@ -367,8 +367,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                   <p className="text-xs text-neutral-400">Требует API ключ. Более детальный анализ.</p>
                 </div>
               </label>
-            </div>
-
+             </div>
+             
             {localSettings.evaluation.provider === 'openai' && (
               <div className="mt-4 p-4 rounded-xl bg-white/[0.02] border border-white/10 space-y-3">
                 <div>
@@ -382,8 +382,8 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                     })}
                     placeholder="sk-..."
                     className="w-full bg-black border border-white/10 rounded-lg p-3 text-sm"
-                  />
-                </div>
+                     />
+                 </div>
                 <div>
                   <label className="text-sm text-neutral-400 block mb-1">Модель</label>
                   <select
@@ -398,7 +398,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
                     <option value="gpt-4-turbo">GPT-4 Turbo</option>
                     <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                   </select>
-                </div>
+                 </div>
               </div>
             )}
           </div>
@@ -420,7 +420,7 @@ const AdminPage: React.FC<AdminPageProps> = ({ settings, onSave, results = [] })
           <div className="flex justify-end gap-3">
             <Button variant="outline" onClick={() => setLocalSettings(settings)}>Сбросить</Button>
             <Button onClick={handleSave}>Сохранить изменения</Button>
-          </div>
+             </div>
         </div>
       )}
     </div>

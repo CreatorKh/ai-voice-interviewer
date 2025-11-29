@@ -35,6 +35,7 @@ import TalentPoolPage from './components/TalentPoolPage';
 // Data and Types
 import { JOBS, SYSTEM_PROMPT_TEMPLATE } from './constants';
 import { AppRoute, Job, TranscriptEntry, InterviewResult, ApplicationData, Contract, AdminSettings, AntiCheatReport, UniversalProfile, JobMatch } from './types';
+import { saveInterviewResult, getAllInterviewResults } from './services/storage';
 
 
 const App: React.FC = () => {
@@ -42,21 +43,65 @@ const App: React.FC = () => {
   
   const [route, setRoute] = useState<AppRoute>({ name: 'home' });
   const [jobs] = useState<Job[]>(JOBS);
-  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>(() => {
-    const saved = localStorage.getItem('interviewResults');
-    try {
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      console.error('Failed to parse interviewResults from localStorage', e);
-      return [];
-    }
-  });
   
-  // Persist interview results
-  useEffect(() => {
-    localStorage.setItem('interviewResults', JSON.stringify(interviewResults));
-  }, [interviewResults]);
+  // Load from IndexedDB instead of localStorage to handle large transcripts/recordings
+  const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([]);
 
+  useEffect(() => {
+    const loadResults = async () => {
+      try {
+        // 1. Load from new DB
+        const dbResults = await getAllInterviewResults();
+        console.log(`[Interview History] Loaded ${dbResults.length} results from IndexedDB`);
+        
+        // 2. Load from legacy localStorage
+        let localResults: InterviewResult[] = [];
+        const local = localStorage.getItem('interviewResults');
+        if (local) {
+          try {
+            localResults = JSON.parse(local);
+            console.log(`[Interview History] Loaded ${localResults.length} results from localStorage`);
+          } catch (e) {
+            console.error("Error parsing legacy results", e);
+          }
+        } else {
+          console.log("[Interview History] No data in localStorage");
+        }
+
+        // 3. Merge and Deduplicate (by date)
+        const mergedResults = [...dbResults];
+        const dbDates = new Set(dbResults.map(r => r.date));
+        let hasNewMigrations = false;
+
+        for (const lr of localResults) {
+            // Check if we already have this interview (by date is usually sufficient for this app)
+            if (!dbDates.has(lr.date)) {
+                mergedResults.push(lr);
+                // Async save to DB so we don't lose it next time if localStorage is cleared
+                saveInterviewResult(lr).catch(e => console.error("Migration save failed", e)); 
+                hasNewMigrations = true;
+            }
+        }
+
+        // 4. Sort by date desc (newest first)
+        mergedResults.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        
+        console.log(`[Interview History] Total merged results: ${mergedResults.length}`);
+        setInterviewResults(mergedResults);
+        
+        if (hasNewMigrations) {
+            console.log("Successfully migrated legacy interviews to IndexedDB");
+        }
+
+      } catch (e) {
+        console.error("Failed to load interview results", e);
+      }
+    };
+    loadResults();
+  }, []);
+  
+  // No more useEffect for localStorage saving of interviewResults - done explicitly in handleEndInterview
+  
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
@@ -236,7 +281,8 @@ const App: React.FC = () => {
     transcript: TranscriptEntry[],
     recordingUrl: string,
     evaluation: any, // The summary object from pipeline
-    antiCheatReport: AntiCheatReport
+    antiCheatReport: AntiCheatReport,
+    recordingBlob?: Blob
   ) => {
     if (route.name !== 'interviewLive') return;
   
@@ -272,9 +318,12 @@ const App: React.FC = () => {
       transcript,
       recordingUrl,
       antiCheatReport,
+      recordingBlob, // Save the actual blob for persistence
     };
   
     setInterviewResults(prev => [...prev, newResult]);
+    // Save to IndexedDB
+    saveInterviewResult(newResult).catch(err => console.error("Failed to save result to DB", err));
     
     // If this is a universal interview (job id 999), create universal profile
     if (jobId === 999 || !universalProfile) {
@@ -350,7 +399,7 @@ const App: React.FC = () => {
     
     // Candidates see CandidateHomePage with One Interview model
     if (userRole === 'candidate' && route.name === 'home') {
-      return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} />;
+      return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} interviewResults={interviewResults} />;
     }
     
     switch (route.name) {
@@ -383,7 +432,7 @@ const App: React.FC = () => {
       case 'admin': return <AdminPage settings={adminSettings} onSave={handleSaveAdminSettings} results={interviewResults} />;
       // One Interview Model routes
       case 'universalInterview': return <UniversalInterviewPage setRoute={setRoute} onStartInterview={handleStartUniversalInterview} />;
-      case 'opportunities': return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} />;
+      case 'opportunities': return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} interviewResults={interviewResults} />;
       case 'talentPool': return <TalentPoolPage setRoute={setRoute} candidates={talentPool} jobs={jobs} selectedJobId={route.jobId} />;
       default: return <div>Not Found</div>;
     }
@@ -434,9 +483,9 @@ const App: React.FC = () => {
   // LOGGED IN VIEW
   return (
     <>
-      <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>
+        <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>
         {renderContent()}
-      </LoggedInLayout>
+        </LoggedInLayout>
       <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} jobs={jobs} setRoute={setRoute} />
     </>
   );

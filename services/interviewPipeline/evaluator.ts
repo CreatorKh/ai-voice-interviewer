@@ -36,6 +36,7 @@ function heuristicEvaluate(
 ): TurnEvaluation {
   const trimmed = answer.trim();
   const tooShort = trimmed.length < PIPELINE_CONFIG.thresholds.shortAnswerChars;
+  const wordCount = trimmed.split(/\s+/).length;
 
   let score = 50;
   const weaknesses: string[] = [];
@@ -49,7 +50,6 @@ function heuristicEvaluate(
     weaknesses.push("Answer is extremely short and lacks detail.");
   } else {
     // Базовая оценка за длину (но не линейно)
-    const wordCount = trimmed.split(/\s+/).length;
     const lengthScore = Math.min(100, (wordCount / 30) * 100); // Насыщение на 30 словах
     
     // Penalize repetition (dumb anti-spam)
@@ -293,38 +293,76 @@ export async function generateFinalEvaluation(params: {
     .map((e, i) => `Turn ${i + 1}: Score ${e.score}, Quality ${e.quality}, Notes: ${e.notes}`)
     .join("\n");
 
-  // 1. Draft Summary
-  console.log("[Evaluator] Generating draft summary...");
+  // 1. Draft Summary with "Smart" Analysis
+  console.log("[Evaluator] Generating DEEP ANALYSIS summary...");
   const draftResult: LLMResult = await safeGenerateJSON({
     model: PIPELINE_CONFIG.models.summary,
-    systemPrompt: PIPELINE_CONFIG.prompts.finalSummary,
+    systemPrompt: `
+You are a PRINCIPAL ENGINEER and BAR RAISER at a top tech company (like Google/Meta).
+Your job is to evaluate a candidate for the ${role} position based on an interview transcript.
+
+=== RULES OF EVALUATION ===
+1. **TRANSCRIPT REPAIR**: The transcript comes from an AI voice system. It may have typos (e.g., "Java Script" vs "JavaScript", "Re-act" vs "React"). MENTALLY CORRECT these technical terms before evaluating. Do not penalize for ASR (Automatic Speech Recognition) errors.
+2. **DEEP DIVE**: Don't just read the surface. Analyze the DEPTH of their answers. Did they explain "Why", or just "How"?
+3. **BEHAVIORAL ANALYSIS**:
+   - Look for HEDGING words ("maybe", "I guess", "probably") -> Sign of low confidence.
+   - Look for STRUCTURE (Did they use "First, Second, Finally"?) -> Sign of seniority.
+   - Look for HONESTY (Did they say "I don't know" vs trying to bluff?).
+4. **STRENGTH FINDING (MATCHMAKING)**: Identify their unique "Superpower". What is the ONE thing they are world-class at?
+
+Output JSON format:
+{
+  "overallScore": number (0-100),
+  "communication": number (0-10),
+  "reasoning": number (0-10),
+  "domainKnowledge": number (0-10),
+  "finalVerdict": "Hire" | "No Hire" | "Strong Hire" | "Weak Hire",
+  "summaryText": "Detailed executive summary...",
+  "strengths": ["string"],
+  "areasForImprovement": ["string"],
+  "technicalDepth": "High" | "Medium" | "Low",
+  "cultureFit": "High" | "Medium" | "Low",
+  "redFlags": ["string"],
+  "superpower": "string (The candidate's strongest selling point)"
+}
+`,
     userPrompt: `
 ROLE: ${role}
 TRANSCRIPT:
 ${formattedTranscript}
 
-EVALUATIONS:
+EVALUATIONS (Turn-by-turn):
 ${evaluationsText}
+
+=== SPECIAL INSTRUCTION ===
+If the transcript contains obvious speech-to-text errors (e.g. phonetic misspellings of tech terms), ignore the error and evaluate the INTENT.
+However, if the candidate talks nonsense, flag it.
 `,
   });
 
   let finalResult = draftResult.data || {};
   let llmUsed = draftResult.fromLLM;
 
-  // 2. Refine Pass (if draft succeeded and we have quota)
+  // 2. Refine Pass (Optional, for polish)
   if (draftResult.ok && draftResult.fromLLM) {
-     console.log("[Evaluator] Refining summary...");
+     console.log("[Evaluator] Refining summary with Senior Bar Raiser...");
      const refineResult: LLMResult = await safeGenerateJSON({
-        model: PIPELINE_CONFIG.models.summaryRefine, // GPT-4o or similar strong model
-        systemPrompt: PIPELINE_CONFIG.prompts.finalSummaryRefine,
+        model: PIPELINE_CONFIG.models.summaryRefine,
+        systemPrompt: PIPELINE_CONFIG.prompts.finalSummaryRefine, // Keep standard refine structure but pass enriched context
         userPrompt: `
-ORIGINAL DRAFT:
+ORIGINAL DRAFT ANALYSIS:
 ${JSON.stringify(draftResult.data)}
 
 TRANSCRIPT:
 ${formattedTranscript}
 
 ROLE: ${role}
+
+=== REFINE INSTRUCTION ===
+1. Ensure the "Superpower" is clearly defined.
+2. Validate the "Red Flags" - are they real or just nervousness?
+3. Make the "Summary" sound like it was written by a human expert, not a bot.
+4. HIGHLIGHT MATCHMAKING POTENTIAL: Which specific team/project would this person fit best?
 `,
      });
 

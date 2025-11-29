@@ -196,7 +196,7 @@ const HirerDashboardPage: React.FC<HirerDashboardPageProps> = ({ results, contra
       {/* Header */}
       <div className="mb-8">
         <div className="flex items-center justify-between mb-6">
-          <div>
+        <div>
             <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent">
               Добро пожаловать, {hirerData?.companyName || 'HR'}
             </h1>
@@ -232,7 +232,7 @@ const HirerDashboardPage: React.FC<HirerDashboardPageProps> = ({ results, contra
           ))}
         </div>
       </div>
-
+      
       {/* Toolbar */}
       <div className="flex flex-col lg:flex-row gap-4 mb-6">
         {/* Search */}
@@ -266,8 +266,8 @@ const HirerDashboardPage: React.FC<HirerDashboardPageProps> = ({ results, contra
             >
               {mode.label}
             </button>
-          ))}
-        </div>
+        ))}
+      </div>
 
         {/* Filter Toggle */}
         <button
@@ -665,7 +665,7 @@ const AnalyticsView: React.FC<{
                 </div>
                 <span className="text-xs text-neutral-500">{label}</span>
                 <span className="text-sm font-medium">{count}</span>
-              </div>
+          </div>
             );
           })}
         </div>
@@ -677,16 +677,16 @@ const AnalyticsView: React.FC<{
         <div className="space-y-3">
           {Object.entries(analytics.byJob).map(([job, data]) => (
             <div key={job} className="flex items-center justify-between p-3 rounded-xl bg-white/[0.03]">
-              <div>
+                    <div>
                 <p className="font-medium">{job}</p>
                 <p className="text-xs text-neutral-500">{data.total} кандидатов</p>
-              </div>
+                        </div>
               <div className="text-right">
                 <p className={`text-lg font-bold ${getScoreColor(data.avgScore)}`}>{data.avgScore}%</p>
                 <p className="text-xs text-emerald-400">{data.hired} нанято</p>
-              </div>
-            </div>
-          ))}
+                    </div>
+                 </div>
+              ))}
           {Object.keys(analytics.byJob).length === 0 && (
             <p className="text-neutral-500 text-sm text-center py-4">Нет данных</p>
           )}
@@ -717,7 +717,7 @@ const AnalyticsView: React.FC<{
           })}
         </div>
       </div>
-    </div>
+           </div>
   );
 };
 
@@ -857,8 +857,8 @@ const CandidateDetailModal: React.FC<{
                   {candidate.antiCheatReport.riskScore}% риск
                 </span>
               </div>
-            </div>
-          )}
+          </div>
+        )}
 
           {/* Notes */}
           <div className="p-4 rounded-xl bg-white/[0.03]">

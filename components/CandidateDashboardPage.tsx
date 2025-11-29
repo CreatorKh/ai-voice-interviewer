@@ -155,7 +155,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ results
                 <h3 className="font-semibold mb-4 flex items-center gap-2">
                   <ChartIcon /> Анализ навыков
                 </h3>
-                <div className="space-y-4">
+        <div className="space-y-4">
                   {[
                     { 
                       label: 'Коммуникация', 
@@ -175,7 +175,7 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ results
                   ].map((skill, i) => (
                     <div key={i}>
                       <div className="flex justify-between items-center mb-1">
-                        <div>
+                <div>
                           <span className="text-sm font-medium">{skill.label}</span>
                           <p className="text-xs text-neutral-500">{skill.desc}</p>
                         </div>
@@ -328,10 +328,10 @@ const CandidateDashboardPage: React.FC<CandidateDashboardPageProps> = ({ results
                         </div>
                       </div>
                     )}
-                  </div>
-                );
-              })}
-            </div>
+              </div>
+            );
+          })}
+        </div>
           </div>
         </>
       )}

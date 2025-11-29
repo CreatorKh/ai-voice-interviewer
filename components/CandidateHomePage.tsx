@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { AppRoute, UniversalProfile, JobMatch, Job } from '../types';
+import { AppRoute, UniversalProfile, JobMatch, Job, InterviewResult } from '../types';
 import { useAuth } from './AuthContext';
 
 interface CandidateHomePageProps {
@@ -7,6 +7,7 @@ interface CandidateHomePageProps {
   universalProfile: UniversalProfile | null;
   jobMatches: JobMatch[];
   jobs: Job[];
+  interviewResults: InterviewResult[];
 }
 
 // Icons
@@ -31,7 +32,8 @@ const CandidateHomePage: React.FC<CandidateHomePageProps> = ({
   setRoute, 
   universalProfile, 
   jobMatches,
-  jobs 
+  jobs,
+  interviewResults
 }) => {
   const { user } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
@@ -302,6 +304,66 @@ const CandidateHomePage: React.FC<CandidateHomePageProps> = ({
           )}
         </div>
       </div>
+
+      {/* Recent Interview History */}
+      {interviewResults.length > 0 && (
+        <div style={fadeIn(350)}>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold">История интервью</h2>
+            <button 
+              onClick={() => setRoute({ name: 'candidateDashboard' })}
+              className="text-sm text-cyan-400 hover:underline flex items-center gap-1"
+            >
+              Все интервью <ArrowRightIcon />
+            </button>
+          </div>
+
+          <div className="grid gap-3">
+            {interviewResults.slice(0, 3).map((result, index) => {
+              const score = result.evaluation?.scores?.overall || 0;
+              const verdict = result.evaluation?.finalVerdict;
+              
+              return (
+                <div 
+                  key={index}
+                  className="p-4 rounded-xl bg-white/[0.02] border border-white/10 hover:border-cyan-500/30 transition-all cursor-pointer group"
+                  onClick={() => setRoute({ name: 'interviewResult', resultIndex: interviewResults.indexOf(result) })}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <h3 className="font-semibold group-hover:text-cyan-400 transition-colors">{result.job.title}</h3>
+                      <p className="text-sm text-neutral-400 mt-1">
+                        {result.date ? new Date(result.date).toLocaleDateString('ru-RU', { 
+                          day: 'numeric', 
+                          month: 'long', 
+                          year: 'numeric' 
+                        }) : 'Дата не указана'}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <div className="text-right">
+                        <p className={`text-xl font-bold ${getScoreColor(score)}`}>{score}%</p>
+                        <p className="text-xs text-neutral-500">Общий балл</p>
+                      </div>
+                      {verdict && (
+                        <div className={`px-3 py-1.5 rounded-lg border text-sm ${
+                          verdict === 'Hire' ? 'bg-green-500/10 border-green-500/30 text-green-400' :
+                          verdict === 'Maybe' ? 'bg-yellow-500/10 border-yellow-500/30 text-yellow-400' :
+                          'bg-red-500/10 border-red-500/30 text-red-400'
+                        }`}>
+                          {verdict === 'Hire' ? 'Рекомендован' :
+                           verdict === 'Maybe' ? 'На рассмотрении' :
+                           'Не рекомендован'}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Tips */}
       <div style={fadeIn(400)} className="p-6 rounded-2xl bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/20">

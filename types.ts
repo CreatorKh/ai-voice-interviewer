@@ -27,6 +27,7 @@ export interface Job {
   hasLevels?: boolean; // If true, show level selection
   baseTitle?: string; // Base title without level (e.g., "Anti-Fraud Specialist")
   level?: ExperienceLevel; // Current selected level
+  specializations?: string[]; // Optional list of specializations (e.g., SOC, DLP)
 }
 
 export interface ApplicationData {
@@ -43,6 +44,7 @@ export interface ApplicationData {
   profileSummary?: string;
   parsedSkills?: string[];
   selectedLevel?: ExperienceLevel; // Selected experience level for interview
+  selectedSpecialization?: string; // Selected specialization (e.g., "SOC")
 }
 
 export type AppRoute =
@@ -110,6 +112,7 @@ export interface InterviewResult {
   } | null;
   transcript: TranscriptEntry[];
   recordingUrl: string;
+  recordingBlob?: Blob; // Actual file for persistence
   antiCheatReport?: AntiCheatReport;
   level?: ExperienceLevel; // Level at which interview was conducted
 }

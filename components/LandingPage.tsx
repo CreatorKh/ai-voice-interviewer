@@ -351,7 +351,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
-                    <span><strong>Структурированная оценка</strong> — одинаковые критерии для всех кандидатов</span>
+                    <span><strong>Поиск талантов, а не экзамен</strong> — AI ищет ваши сильные стороны и "суперсилы" для идеального матчинга</span>
                   </li>
                   <li className="flex gap-3">
                     <CheckIcon className="w-5 h-5 text-emerald-400 shrink-0 mt-0.5" />
@@ -463,8 +463,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
                 desc: 'У нас уже есть функционирующий MVP: голосовые интервью, транскрипция, оценка ответов, антифрод-модуль. Не просто идея — работающий продукт.',
               },
               {
-                title: 'Скорость исполнения',
-                desc: 'Agile-подход к разработке. Мы умеем быстро итерировать, тестировать гипотезы и доводить до результата.',
+                title: 'Философия Talent First',
+                desc: 'Мы создаём не просто "автоответчик", а партнёра. Наш AI настроен на поиск сильных сторон кандидата (Talent Scout), что повышает конверсию в найм.',
               },
             ].map((item, i) => (
               <TiltCard key={i} intensity={6}>

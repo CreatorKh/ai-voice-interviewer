@@ -25,6 +25,10 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
   const [leetcodeUrl, setLeetcodeUrl] = useState("");
   const [tryhackmeUrl, setTryhackmeUrl] = useState("");
   const [codeforcesUrl, setCodeforcesUrl] = useState("");
+    
+  // State for AI analysis results
+  const [profileSummary, setProfileSummary] = useState("");
+  const [parsedSkills, setParsedSkills] = useState<string[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [loadingMessage, setLoadingMessage] = useState("Continue to Device Check");
@@ -35,6 +39,8 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
     const saved = localStorage.getItem('selectedLevel');
     return saved ? saved as ExperienceLevel : undefined;
   });
+
+  const [selectedSpecialization, setSelectedSpecialization] = useState<string>("");
 
   // Clear the level from localStorage after reading
   useEffect(() => {
@@ -52,6 +58,11 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
       return;
     }
 
+    if (job.specializations && job.specializations.length > 0 && !selectedSpecialization) {
+      setError("Please select a specialization.");
+      return;
+    }
+
     setLoading(true);
     setLoadingMessage("Submitting…");
 
@@ -66,7 +77,10 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
       leetcodeUrl: leetcodeUrl || undefined,
       tryhackmeUrl: tryhackmeUrl || undefined,
       codeforcesUrl: codeforcesUrl || undefined,
+      profileSummary: profileSummary || undefined,
+      parsedSkills: parsedSkills || undefined,
       selectedLevel: selectedLevel,
+      selectedSpecialization: selectedSpecialization || undefined,
     };
 
     if (applicationData.linkedInUrl || applicationData.githubUrl || applicationData.kaggleUrl || applicationData.leetcodeUrl || applicationData.tryhackmeUrl || applicationData.codeforcesUrl) {
@@ -209,6 +223,26 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
                 </div>
               </div>
           </section>
+
+          {job.specializations && job.specializations.length > 0 && (
+            <section className="rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-6 space-y-4">
+              <h2 className="font-semibold text-emerald-400">Choose Specialization</h2>
+              <p className="text-xs text-neutral-400">Please select your specific area of focus for this role.</p>
+              <div className="grid gap-1">
+                <select 
+                  className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3 appearance-none focus:border-emerald-500 outline-none"
+                  value={selectedSpecialization}
+                  onChange={e => setSelectedSpecialization(e.target.value)}
+                  required
+                >
+                  <option value="" disabled>Select a specialization...</option>
+                  {job.specializations.map(spec => (
+                    <option key={spec} value={spec} className="bg-neutral-900">{spec}</option>
+                  ))}
+                </select>
+              </div>
+            </section>
+          )}
           
           <Button type="submit" disabled={loading} className="w-full md:w-auto">{loading ? loadingMessage : "Continue to Device Check"}</Button>
           {error && <p className="text-red-400 text-sm">{error}</p>}
