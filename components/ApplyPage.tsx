@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/generative-ai';
+import { GoogleGenerativeAI, Type } from '@google/generative-ai';
 import { Job, AppRoute, ApplicationData, ExperienceLevel } from '../types';
 import Button from './Button';
 import Stepper from './Stepper';
@@ -86,7 +86,7 @@ const ApplyPage: React.FC<ApplyPageProps> = ({ job, setRoute }) => {
     if (applicationData.linkedInUrl || applicationData.githubUrl || applicationData.kaggleUrl || applicationData.leetcodeUrl || applicationData.tryhackmeUrl || applicationData.codeforcesUrl) {
       setLoadingMessage("Analyzing profiles…");
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+        const ai = new GoogleGenerativeAI({ apiKey: process.env.API_KEY as string });
         const prompt = `As an expert technical recruiter, analyze the provided professional profile URLs. IMPORTANT: Do not attempt to access these URLs directly. Instead, based on the information present *in the URLs themselves* (like usernames or keywords) and your general knowledge of tech roles, infer a likely professional summary and key skills for this candidate. 
         
         URLs:

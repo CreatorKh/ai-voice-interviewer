@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/generative-ai';
+import { GoogleGenerativeAI, LiveServerMessage, Modality } from '@google/generative-ai';
 import { TranscriptEntry, Speaker, Job, ApplicationData, AntiCheatReport } from '../types';
 import { finalizeInterview, InterviewState } from '../services/interviewPipeline/pipeline';
 import { getQuestionForRoleAndStage } from '../services/interviewPipeline/questionBank';
@@ -621,7 +621,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
         if (!isMountedRef.current) return;
 
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
+            const ai = new GoogleGenerativeAI({ apiKey: process.env.API_KEY as string });
 
             const resumeContext = `
 Name: ${applicationData.name}
