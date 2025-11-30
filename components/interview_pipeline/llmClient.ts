@@ -1,5 +1,5 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI } from "@google/generative-ai";
 import { PIPELINE_CONFIG } from "./pipelineConfig";
 
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });

@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/generative-ai';
 import { TranscriptEntry, Speaker, Job, ApplicationData, AntiCheatReport } from '../types';
 import { finalizeInterview, InterviewState } from '../services/interviewPipeline/pipeline';
 import { getQuestionForRoleAndStage } from '../services/interviewPipeline/questionBank';

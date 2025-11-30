@@ -1,6 +1,6 @@
 // Draft Interviewer: Generates initial draft question (fast/cheap model)
 
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { QuestionPlan, DraftQuestion, ConversationState } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 

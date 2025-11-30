@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/generative-ai';
 import { Job, AppRoute, ApplicationData, ExperienceLevel } from '../types';
 import Button from './Button';
 import Stepper from './Stepper';

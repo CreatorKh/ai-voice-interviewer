@@ -1,6 +1,6 @@
 // Main evaluation module - optimized for single LLM call
 
-import { GoogleGenerativeAI } from '@google/genai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { TEXT_MODEL_ID } from '../config/models';
 import { TranscriptEntry, Speaker, Job, ApplicationData } from '../types';
 import { FinalEvaluation, TurnEvaluation, SkillScore, AntiCheatReport } from './types';

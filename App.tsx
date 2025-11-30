@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/generative-ai';
 
 // Auth and Layout
 import { useAuth } from './components/AuthContext';
