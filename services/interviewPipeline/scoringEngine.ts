@@ -1,6 +1,6 @@
 // Scoring Engine: Evaluates candidate answers
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { AnswerEvaluation, SkillUpdate, QuestionPlan } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 

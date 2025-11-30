@@ -6,8 +6,9 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, '.', '');
   return {
     server: {
-      port: 3001,
+      port: 3000,
       host: '0.0.0.0',
+      allowedHosts: true, // Allow all hosts (for tunneling services)
     },
     plugins: [react()],
     define: {

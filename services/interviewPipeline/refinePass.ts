@@ -1,6 +1,6 @@
 // Refine Pass: Refines question style and tone (more powerful model)
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { DraftQuestion, RefinedQuestion, ConversationState } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 

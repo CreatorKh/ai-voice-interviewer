@@ -1,6 +1,6 @@
 // Question Planner: Plans the next question based on conversation state
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { ConversationState, QuestionPlan } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 

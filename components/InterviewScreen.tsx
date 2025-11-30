@@ -677,15 +677,16 @@ YOU MUST SPEAK **ONLY** IN ${applicationData.language || 'Russian'} - THIS IS NO
 - If language is "English", speak ONLY English. If "Russian", speak ONLY Russian.
 - This rule applies to greetings, questions, acknowledgments, and goodbyes.
 
-=== STARTING RULES ===
-1. YOU initiate the conversation ONCE.
-2. Greet the candidate EXACTLY ONCE in ${applicationData.language || 'Russian'}:
+=== STARTING RULES (CRITICAL - HIGHEST PRIORITY) ===
+1. YOU MUST initiate the conversation IMMEDIATELY when you receive a "START NOW" or connection message.
+2. DO NOT WAIT for the user to speak first. YOU speak first.
+3. Greet the candidate EXACTLY ONCE in ${applicationData.language || 'Russian'}:
    ${applicationData.language === 'English'
                     ? `"Hello! My name is Zarina, I'm from Wind AI. Nice to meet you! Today we'll conduct an interview for the ${job.title} position. How are you feeling? Ready to begin?"`
                     : `"Здравствуйте! Меня зовут Зарина, я из Wind AI. Рада вас видеть! Сегодня мы проведём интервью на позицию ${job.title}. Как ваше настроение? Готовы начать?"`
                 }
-3. NEVER repeat the greeting. If the connection drops or user says "hello" again, just acknowledge and move to the NEXT question.
-4. Wait for the candidate to respond to the greeting, then proceed to Phase 1.
+4. NEVER repeat the greeting. If the connection drops or user says "hello" again, just acknowledge and move to the NEXT question.
+5. After greeting, wait for the candidate to respond, then proceed to Phase 1.
 
 === LISTENING & NOISE RULES ===
 1. IGNORE NOISE: If the user input is just noise, silence, or very short/meaningless sounds (like "<noise>", "...", "а", "м"), DO NOT accept it as an answer.
@@ -842,8 +843,17 @@ ${resumeContext}
                                     session.sendRealtimeInput({
                                         content: [{ text: startPrompt }]
                                     });
+
+                                    // Send a second trigger after a short delay to ensure AI responds
+                                    setTimeout(() => {
+                                        if (!isMountedRef.current) return;
+                                        console.log("Sending follow-up trigger...");
+                                        session.sendRealtimeInput({
+                                            content: [{ text: "START NOW" }]
+                                        });
+                                    }, 1000);
                                 });
-                            }, 2000);
+                            }, 3000);
                         }
                     },
                     onmessage: async (msg: LiveServerMessage) => {

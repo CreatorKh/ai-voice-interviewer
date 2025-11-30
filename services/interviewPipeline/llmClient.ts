@@ -1,5 +1,5 @@
 // llmClient.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenerativeAI } from "@google/genai";
 import { PIPELINE_CONFIG } from "./pipelineConfig";
 import { getLLMConfig } from "../../config/llmConfig";
 

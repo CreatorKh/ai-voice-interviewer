@@ -53,7 +53,7 @@ const MapIcon = ({ className = "" }: { className?: string }) => (
 
 const LinkedInIcon = ({ className = "" }: { className?: string }) => (
   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className={className}>
-    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z"/>
+    <path d="M20.5 2h-17A1.5 1.5 0 002 3.5v17A1.5 1.5 0 003.5 22h17a1.5 1.5 0 001.5-1.5v-17A1.5 1.5 0 0020.5 2zM8 19H5v-9h3zM6.5 8.25A1.75 1.75 0 118.3 6.5a1.78 1.78 0 01-1.8 1.75zM19 19h-3v-4.74c0-1.42-.6-1.93-1.38-1.93A1.74 1.74 0 0013 14.19a.66.66 0 000 .14V19h-3v-9h2.9v1.3a3.11 3.11 0 012.7-1.4c1.55 0 3.36.86 3.36 3.66z" />
   </svg>
 );
 
@@ -72,7 +72,7 @@ const TiltCard = ({ children, className = "", intensity = 10 }: { children: Reac
     const centerY = rect.height / 2;
     const rotateX = ((y - centerY) / centerY) * -intensity;
     const rotateY = ((x - centerX) / centerX) * intensity;
-    
+
     setTransform(`perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`);
     setGlare({ x: (x / rect.width) * 100, y: (y / rect.height) * 100, opacity: 0.15 });
   };
@@ -91,7 +91,7 @@ const TiltCard = ({ children, className = "", intensity = 10 }: { children: Reac
       style={{ transform, transformStyle: 'preserve-3d' }}
     >
       {children}
-      <div 
+      <div
         className="absolute inset-0 rounded-[inherit] pointer-events-none transition-opacity duration-200"
         style={{
           background: `radial-gradient(circle at ${glare.x}% ${glare.y}%, rgba(255,255,255,${glare.opacity}), transparent 50%)`,
@@ -103,7 +103,7 @@ const TiltCard = ({ children, className = "", intensity = 10 }: { children: Reac
 
 // Floating 3D Element
 const Float3D = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => (
-  <div 
+  <div
     className="animate-float"
     style={{ animationDelay: `${delay}ms` }}
   >
@@ -127,7 +127,7 @@ const TEAM_MEMBERS = [
     role: "Founder & CEO",
     company: "Ipak Yuli Bank",
     position: "Team Lead Antifraud",
-    skills: ["Fraud Detection", "Risk Analysis", "Team Management", "Banking Systems"],
+    skills: ["Fraud Detection", "Risk Analysis", "AI & NLP", "Banking Systems"],
     linkedin: "https://linkedin.com/in/khurshid-khusanboev",
     avatar: "https://media.licdn.com/dms/image/v2/D4D03AQEZLCxNSxLe4A/profile-displayphoto-shrink_400_400/B4DZP5fe8HG0Ak-/0/1735057601957?e=1766016000&v=beta&t=LtX26cHs1dZXBBk1G7ZRK5Ad87XTX_LPIhD0JGluZCc",
   },
@@ -178,9 +178,9 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
 
   return (
     <div className="min-h-screen bg-black text-white overflow-x-hidden selection:bg-emerald-500/30 selection:text-white">
-      
+
       {/* Global 3D cursor glow effect */}
-      <div 
+      <div
         className="fixed w-[500px] h-[500px] rounded-full pointer-events-none z-0 transition-transform duration-100"
         style={{
           background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)',
@@ -201,14 +201,14 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             <a href="#team" className="hover:text-white transition-colors">Команда</a>
             <a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a>
             <a href="#tech" className="hover:text-white transition-colors">Технологии</a>
-            <button 
+            <button
               onClick={() => setRoute({ name: 'hirerLanding' })}
               className="hover:text-white transition-colors"
             >
               Для HR
             </button>
           </div>
-          <button 
+          <button
             onClick={() => setRoute({ name: 'explore' })}
             className="px-5 py-2.5 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-all text-sm shadow-lg shadow-white/10"
           >
@@ -234,7 +234,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
 
         {/* 3D Grid */}
         <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:60px_60px] [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]" />
-        
+
         <div className="relative z-10 max-w-5xl mx-auto text-center">
           <div style={fadeIn(0)}>
             <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-8 backdrop-blur-sm">
@@ -242,7 +242,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               Новая эпоха найма
             </span>
           </div>
-          
+
           <h1 style={fadeIn(100)} className="text-5xl sm:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] mb-8">
             Одно интервью.
             <br />
@@ -250,15 +250,15 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               Сотни возможностей.
             </span>
           </h1>
-          
+
           <p style={fadeIn(200)} className="text-lg sm:text-xl text-neutral-400 max-w-2xl mx-auto mb-12 leading-relaxed">
-            Пройдите одно AI-интервью и получите универсальный профиль для всех вакансий. 
+            Пройдите одно AI-интервью и получите универсальный профиль для всех вакансий.
             <span className="text-white font-semibold">Без повторных собеседований</span> — ваш профиль работает на вас.
           </p>
-          
+
           <div style={fadeIn(300)} className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <TiltCard intensity={5}>
-              <button 
+              <button
                 onClick={() => setRoute({ name: 'explore' })}
                 className="group flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-bold rounded-2xl transition-all shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40"
               >
@@ -305,7 +305,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       <section id="problem" className="py-24 px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-950/50 to-transparent" />
         <div className="max-w-6xl mx-auto relative z-10">
-          <SectionTitle 
+          <SectionTitle
             icon={<LightBulbIcon className="w-4 h-4" />}
             badge="Раздел 1"
             title="Проблема и Решение"
@@ -370,7 +370,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           <TiltCard intensity={3} className="mt-8">
             <div className="p-6 rounded-2xl bg-white/5 border border-white/10 text-center backdrop-blur-sm">
               <p className="text-lg text-neutral-300">
-                <strong className="text-white">Ожидаемый эффект:</strong> сокращение времени найма с 45 дней до 5, 
+                <strong className="text-white">Ожидаемый эффект:</strong> сокращение времени найма с 45 дней до 5,
                 снижение нагрузки на HR-команду на 70%, объективная оценка всех кандидатов.
               </p>
             </div>
@@ -381,7 +381,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       {/* ===== 2. КОМАНДА ===== */}
       <section id="team" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <SectionTitle 
+          <SectionTitle
             icon={<UserIcon className="w-4 h-4" />}
             badge="Раздел 2"
             title="Команда"
@@ -394,8 +394,8 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
                 <div className="p-8 rounded-3xl bg-gradient-to-br from-white/10 to-white/5 border border-white/10 backdrop-blur-sm h-full">
                   <div className="flex items-start gap-5 mb-6">
                     {/* Avatar - uses custom photo or UI Avatars service */}
-                    <img 
-                      src={member.avatar || getAvatarUrl(member.name, 200)} 
+                    <img
+                      src={member.avatar || getAvatarUrl(member.name, 200)}
                       alt={member.name}
                       className="w-20 h-20 rounded-2xl object-cover shrink-0 shadow-lg shadow-emerald-500/20 border-2 border-emerald-500/30"
                       onError={(e) => {
@@ -411,7 +411,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
                       <p className="text-neutral-600 text-sm">{member.company}</p>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-wrap gap-2 mb-5">
                     {member.skills.map((skill, j) => (
                       <span key={j} className="px-3 py-1.5 text-xs rounded-lg bg-white/5 text-neutral-400 border border-white/5">
@@ -421,10 +421,10 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
                   </div>
 
                   {member.linkedin && (
-                    <a 
-                      href={member.linkedin} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
+                    <a
+                      href={member.linkedin}
+                      target="_blank"
+                      rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 text-sm text-neutral-400 hover:text-white transition-colors"
                     >
                       <LinkedInIcon className="w-4 h-4" />
@@ -442,7 +442,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       <section className="py-24 px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-950/50 to-transparent" />
         <div className="max-w-6xl mx-auto relative z-10">
-          <SectionTitle 
+          <SectionTitle
             icon={<SparklesIcon className="w-4 h-4" />}
             badge="Раздел 3"
             title="Почему именно наша команда?"
@@ -451,20 +451,20 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           <div className="grid md:grid-cols-2 gap-6">
             {[
               {
-                title: 'Экспертиза в антифроде',
-                desc: 'Опыт работы в банковской сфере с системами выявления мошенничества. Понимаем, как строить надёжные системы верификации и оценки.',
+                title: 'Экспертиза в Voice AI & NLP',
+                desc: 'Опыт разработки голосовых ассистентов и моделей распознавания эмоций (UZINFOCOM, Huawei). Мы создаем естественный диалог, а не просто чат-бота.',
               },
               {
-                title: 'Бизнес-экспертиза',
-                desc: 'Опыт работы с крупными e-commerce платформами. Понимаем потребности бизнеса в масштабировании и оптимизации процессов.',
+                title: 'Банковский уровень безопасности',
+                desc: 'Фундамент системы построен на опыте защиты цифровых каналов банка (Ipak Yuli Bank). Мы знаем, как предотвратить фрод и защитить данные.',
               },
               {
-                title: 'Рабочий прототип',
-                desc: 'У нас уже есть функционирующий MVP: голосовые интервью, транскрипция, оценка ответов, антифрод-модуль. Не просто идея — работающий продукт.',
+                title: 'Автоматизация масштаба Enterprise',
+                desc: 'Опыт автоматизации контакт-центров для крупных предприятий (Bssys). Наша система готова к высоким нагрузкам и реальной эффективности.',
               },
               {
-                title: 'Философия Talent First',
-                desc: 'Мы создаём не просто "автоответчик", а партнёра. Наш AI настроен на поиск сильных сторон кандидата (Talent Scout), что повышает конверсию в найм.',
+                title: 'Научный подход (R&D)',
+                desc: 'Бэкграунд в Data Science (Huawei, SPbU) гарантирует использование передовых моделей и научно обоснованных методик оценки кандидатов.',
               },
             ].map((item, i) => (
               <TiltCard key={i} intensity={6}>
@@ -481,7 +481,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       {/* ===== 4. ROADMAP ===== */}
       <section id="roadmap" className="py-24 px-6">
         <div className="max-w-6xl mx-auto">
-          <SectionTitle 
+          <SectionTitle
             icon={<MapIcon className="w-4 h-4" />}
             badge="Раздел 4"
             title="Дорожная карта"
@@ -500,46 +500,45 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
           {/* Timeline */}
           <div className="relative max-w-3xl mx-auto">
             <div className="absolute left-4 md:left-1/2 top-0 bottom-0 w-px bg-gradient-to-b from-emerald-500 via-emerald-500/50 to-transparent" />
-            
+
             {[
-              { 
-                date: 'Начало ноября 2025', 
-                title: 'Идея и Исследование', 
+              {
+                date: 'Начало ноября 2025',
+                title: 'Идея и Исследование',
                 desc: 'Старт разработки. Анализ проблем найма, формирование концепции "Одного интервью".',
                 status: 'done'
               },
-              { 
-                date: 'Середина ноября 2025', 
-                title: 'Разработка ядра', 
+              {
+                date: 'Середина ноября 2025',
+                title: 'Разработка ядра',
                 desc: 'Создание голосового AI-движка, интеграция LLM с низкой задержкой (<500ms).',
                 status: 'done'
               },
-              { 
-                date: 'Конец ноября 2025', 
-                title: 'MVP и Антифрод', 
+              {
+                date: 'Конец ноября 2025',
+                title: 'MVP и Антифрод',
                 desc: 'Внедрение системы оценки рисков, дашборды для кандидатов и HR, система матчинга.',
                 status: 'current'
               },
-              { 
-                date: 'Декабрь 2025', 
-                title: 'Запуск и Пилот', 
+              {
+                date: 'Декабрь 2025',
+                title: 'Запуск и Пилот',
                 desc: 'Первые боевые интервью, сбор фидбека, расширение базы вакансий.',
                 status: 'future'
               },
-              { 
-                date: 'Q1 2026', 
-                title: 'Масштабирование', 
+              {
+                date: 'Q1 2026',
+                title: 'Масштабирование',
                 desc: 'Интеграции с ATS (Greenhouse, Lever), мобильное приложение, выход на новые рынки.',
                 status: 'future'
               },
             ].map((item, i) => (
               <div key={i} className={`relative flex items-start gap-6 md:gap-12 mb-12 ${i % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}>
-                <div className={`absolute left-4 md:left-1/2 w-3 h-3 rounded-full -translate-x-1/2 mt-2 ${
-                  item.status === 'done' ? 'bg-emerald-500' : 
-                  item.status === 'current' ? 'bg-emerald-400 ring-4 ring-emerald-400/30 animate-pulse' : 
-                  'bg-neutral-600'
-                }`} />
-                
+                <div className={`absolute left-4 md:left-1/2 w-3 h-3 rounded-full -translate-x-1/2 mt-2 ${item.status === 'done' ? 'bg-emerald-500' :
+                  item.status === 'current' ? 'bg-emerald-400 ring-4 ring-emerald-400/30 animate-pulse' :
+                    'bg-neutral-600'
+                  }`} />
+
                 <TiltCard intensity={5} className={`ml-10 md:ml-0 md:w-[calc(50%-3rem)] ${i % 2 === 0 ? 'md:text-right md:pr-12' : 'md:pl-12'}`}>
                   <div className="p-5 rounded-2xl bg-white/5 border border-white/10 backdrop-blur-sm">
                     <span className={`text-sm font-medium ${item.status === 'current' ? 'text-emerald-400' : 'text-neutral-500'}`}>
@@ -572,7 +571,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
       <section id="tech" className="py-24 px-6 relative">
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-neutral-950/50 to-transparent" />
         <div className="max-w-6xl mx-auto relative z-10">
-          <SectionTitle 
+          <SectionTitle
             icon={<CodeIcon className="w-4 h-4" />}
             badge="Раздел 5"
             title="Как мы реализуем решение"
@@ -619,16 +618,47 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               </h4>
               <div className="grid md:grid-cols-2 gap-6">
                 {[
-                  { title: 'Голосовое интервью', desc: 'Real-time диалог с кандидатом: распознавание речи, генерация вопросов, синтез голоса — всё в одном потоке с латентностью менее 500ms.' },
-                  { title: 'Оценка ответов', desc: 'Multi-step reasoning: сначала эвристики (длина, структура), затем LLM-анализ на техническую глубину, коммуникацию, логику.' },
-                  { title: 'Антифрод-система', desc: 'Мультимодальный анализ: видео (gaze detection), аудио (голосовые паттерны), текст (детекция сгенерированных ответов).' },
-                  { title: 'Адаптивные вопросы', desc: 'RAG-подход: банк вопросов по ролям + динамическая сложность на основе предыдущих ответов кандидата.' },
+                  {
+                    title: 'Голосовое интервью в реальном времени',
+                    desc: 'Передовые LLM-модели для создания естественного диалога с латентностью <500ms. WebRTC для потоковой передачи аудио, собственный pipeline для бесшовной интеграции STT → LLM → TTS.'
+                  },
+                  {
+                    title: 'Интеллектуальная оценка ответов',
+                    desc: 'Multi-step reasoning: эвристический анализ (структура, полнота) + глубокий LLM-анализ на техническую компетентность, логику и коммуникативные навыки. Формируем детальный профиль кандидата.'
+                  },
+                  {
+                    title: 'Мультимодальная антифрод-система',
+                    desc: 'Комплексный анализ: видео (отслеживание взгляда, движения), аудио (голосовые паттерны, эмоции), текст (детекция AI-сгенерированных ответов). Банковский уровень защиты от мошенничества.'
+                  },
+                  {
+                    title: 'Адаптивные вопросы (RAG)',
+                    desc: 'Retrieval-Augmented Generation: база из 500+ вопросов по ролям + динамическая корректировка сложности. AI адаптируется к уровню кандидата в режиме реального времени.'
+                  },
                 ].map((item, i) => (
                   <div key={i}>
                     <h5 className="font-semibold mb-2">{item.title}</h5>
                     <p className="text-neutral-400 text-sm">{item.desc}</p>
                   </div>
                 ))}
+              </div>
+
+              {/* Key Technical Innovations */}
+              <div className="mt-8 pt-6 border-t border-white/10">
+                <h5 className="font-bold mb-4 text-emerald-400">Ключевые технические инновации:</h5>
+                <div className="grid md:grid-cols-3 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-1">&lt;500ms</div>
+                    <div className="text-xs text-neutral-500">Латентность ответа AI</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-1">3-модальный</div>
+                    <div className="text-xs text-neutral-500">Анализ (видео+аудио+текст)</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-white mb-1">LLM-модель</div>
+                    <div className="text-xs text-neutral-500">Передовая AI технология</div>
+                  </div>
+                </div>
               </div>
             </div>
           </TiltCard>
@@ -641,7 +671,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
         <Float3D>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-emerald-500/15 rounded-full blur-[200px] pointer-events-none" />
         </Float3D>
-        
+
         <div className="relative z-10 max-w-3xl mx-auto text-center">
           <h2 className="text-4xl md:text-6xl font-bold mb-6">
             Попробуйте сами
@@ -650,7 +680,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             Пройдите демо-интервью и оцените качество AI-собеседника
           </p>
           <TiltCard intensity={5} className="inline-block">
-            <button 
+            <button
               onClick={() => setRoute({ name: 'explore' })}
               className="group px-10 py-5 bg-gradient-to-r from-emerald-500 to-cyan-500 text-black font-bold rounded-2xl text-lg shadow-lg shadow-emerald-500/25 hover:shadow-emerald-500/40 transition-all"
             >

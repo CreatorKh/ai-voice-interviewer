@@ -1,6 +1,6 @@
 // services/interviewEvaluation.ts
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { TEXT_MODEL_ID } from '../config/models';
 import { TranscriptEntry, Speaker, ApplicationData } from '../types';
 import { PipelineState } from './interviewPipeline/types';

@@ -1,6 +1,6 @@
 // Skill Engine: Analyzes candidate responses to identify strengths
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { ConversationState, SkillProfile, SkillUpdate } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 

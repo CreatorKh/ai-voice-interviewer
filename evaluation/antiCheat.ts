@@ -1,6 +1,6 @@
 // Anti-cheat analysis module
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenerativeAI } from '@google/genai';
 import { TEXT_MODEL_ID } from '../config/models';
 import { TranscriptEntry, Job, ApplicationData, Speaker } from '../types';
 import { TurnEvaluation, AntiCheatReport, AntiCheatSignal } from './types';
