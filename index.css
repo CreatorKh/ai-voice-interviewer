@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* Ensure SVG icons have proper sizing */
+svg {
+  flex-shrink: 0;
+}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { GoogleGenerativeAI, Type } from '@google/generative-ai';
+
 
 // Auth and Layout
 import { useAuth } from './components/AuthContext';
@@ -40,10 +40,10 @@ import { saveInterviewResult, getAllInterviewResults } from './services/storage'
 
 const App: React.FC = () => {
   const { user, userRole, isLoginChoiceOpen, closeLoginChoice, isOnboardingOpen, openLoginChoice } = useAuth();
-  
+
   const [route, setRoute] = useState<AppRoute>({ name: 'home' });
   const [jobs] = useState<Job[]>(JOBS);
-  
+
   // Load from IndexedDB instead of localStorage to handle large transcripts/recordings
   const [interviewResults, setInterviewResults] = useState<InterviewResult[]>([]);
 
@@ -53,7 +53,7 @@ const App: React.FC = () => {
         // 1. Load from new DB
         const dbResults = await getAllInterviewResults();
         console.log(`[Interview History] Loaded ${dbResults.length} results from IndexedDB`);
-        
+
         // 2. Load from legacy localStorage
         let localResults: InterviewResult[] = [];
         const local = localStorage.getItem('interviewResults');
@@ -74,23 +74,23 @@ const App: React.FC = () => {
         let hasNewMigrations = false;
 
         for (const lr of localResults) {
-            // Check if we already have this interview (by date is usually sufficient for this app)
-            if (!dbDates.has(lr.date)) {
-                mergedResults.push(lr);
-                // Async save to DB so we don't lose it next time if localStorage is cleared
-                saveInterviewResult(lr).catch(e => console.error("Migration save failed", e)); 
-                hasNewMigrations = true;
-            }
+          // Check if we already have this interview (by date is usually sufficient for this app)
+          if (!dbDates.has(lr.date)) {
+            mergedResults.push(lr);
+            // Async save to DB so we don't lose it next time if localStorage is cleared
+            saveInterviewResult(lr).catch(e => console.error("Migration save failed", e));
+            hasNewMigrations = true;
+          }
         }
 
         // 4. Sort by date desc (newest first)
         mergedResults.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-        
+
         console.log(`[Interview History] Total merged results: ${mergedResults.length}`);
         setInterviewResults(mergedResults);
-        
+
         if (hasNewMigrations) {
-            console.log("Successfully migrated legacy interviews to IndexedDB");
+          console.log("Successfully migrated legacy interviews to IndexedDB");
         }
 
       } catch (e) {
@@ -99,13 +99,13 @@ const App: React.FC = () => {
     };
     loadResults();
   }, []);
-  
+
   // No more useEffect for localStorage saving of interviewResults - done explicitly in handleEndInterview
-  
+
   const [contracts, setContracts] = useState<Contract[]>([]);
   const [isLoadingResult, setIsLoadingResult] = useState(false);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
-  
+
   // One Interview Model state
   const [universalProfile, setUniversalProfile] = useState<UniversalProfile | null>(() => {
     const saved = localStorage.getItem('universalProfile');
@@ -115,7 +115,7 @@ const App: React.FC = () => {
       return null;
     }
   });
-  
+
   const [jobMatches, setJobMatches] = useState<JobMatch[]>(() => {
     const saved = localStorage.getItem('jobMatches');
     try {
@@ -124,7 +124,7 @@ const App: React.FC = () => {
       return [];
     }
   });
-  
+
   const [talentPool, setTalentPool] = useState<UniversalProfile[]>(() => {
     const saved = localStorage.getItem('talentPool');
     try {
@@ -133,75 +133,75 @@ const App: React.FC = () => {
       return [];
     }
   });
-  
+
   // Persist One Interview Model data
   useEffect(() => {
     if (universalProfile) {
       localStorage.setItem('universalProfile', JSON.stringify(universalProfile));
     }
   }, [universalProfile]);
-  
+
   useEffect(() => {
     localStorage.setItem('jobMatches', JSON.stringify(jobMatches));
   }, [jobMatches]);
-  
+
   useEffect(() => {
     localStorage.setItem('talentPool', JSON.stringify(talentPool));
   }, [talentPool]);
   const [adminSettings, setAdminSettings] = useState<AdminSettings>(() => {
     const defaultSettings: AdminSettings = {
-        interviewer: {
-            provider: 'gemini',
-            systemPrompt: SYSTEM_PROMPT_TEMPLATE,
+      interviewer: {
+        provider: 'gemini',
+        systemPrompt: SYSTEM_PROMPT_TEMPLATE,
+      },
+      evaluation: {
+        provider: 'gemini',
+        openAI: {
+          apiKey: '',
+          model: 'gpt-4o',
         },
-        evaluation: {
-            provider: 'gemini',
-            openAI: {
-                apiKey: '',
-                model: 'gpt-4o',
-            },
-        },
+      },
     };
     try {
-        const savedSettings = localStorage.getItem('adminSettings');
-        if (!savedSettings) return defaultSettings;
-        
-        const parsed = JSON.parse(savedSettings);
-        // Migration logic for old structure
-        if (parsed.evaluationProvider) {
-            return {
-                interviewer: {
-                    provider: 'gemini',
-                    systemPrompt: parsed.interview?.systemPrompt || SYSTEM_PROMPT_TEMPLATE,
-                },
-                evaluation: {
-                    provider: parsed.evaluationProvider,
-                    openAI: {
-                        apiKey: parsed.openAI?.apiKey || '',
-                        model: parsed.openAI?.evaluationModel || 'gpt-4o',
-                    },
-                },
-            };
-        }
-        // If it's already the new structure
-        if (parsed.evaluation && parsed.interviewer) {
-            return parsed;
-        }
-        return defaultSettings;
+      const savedSettings = localStorage.getItem('adminSettings');
+      if (!savedSettings) return defaultSettings;
+
+      const parsed = JSON.parse(savedSettings);
+      // Migration logic for old structure
+      if (parsed.evaluationProvider) {
+        return {
+          interviewer: {
+            provider: 'gemini',
+            systemPrompt: parsed.interview?.systemPrompt || SYSTEM_PROMPT_TEMPLATE,
+          },
+          evaluation: {
+            provider: parsed.evaluationProvider,
+            openAI: {
+              apiKey: parsed.openAI?.apiKey || '',
+              model: parsed.openAI?.evaluationModel || 'gpt-4o',
+            },
+          },
+        };
+      }
+      // If it's already the new structure
+      if (parsed.evaluation && parsed.interviewer) {
+        return parsed;
+      }
+      return defaultSettings;
     } catch (error) {
-        console.error("Could not parse admin settings from localStorage", error);
-        return defaultSettings;
+      console.error("Could not parse admin settings from localStorage", error);
+      return defaultSettings;
     }
   });
 
   useEffect(() => {
     if (!user) {
-        // Public routes that don't need login
-        const publicRoutes = ['home', 'explore', 'job', 'hirerLanding'];
-        // If trying to access a protected route, just open login modal (don't redirect to home/landing)
-        if (!publicRoutes.includes(route.name)) {
-            openLoginChoice(); 
-        }
+      // Public routes that don't need login
+      const publicRoutes = ['home', 'explore', 'job', 'hirerLanding'];
+      // If trying to access a protected route, just open login modal (don't redirect to home/landing)
+      if (!publicRoutes.includes(route.name)) {
+        openLoginChoice();
+      }
     }
   }, [user, route.name, openLoginChoice]);
 
@@ -215,12 +215,12 @@ const App: React.FC = () => {
       linkedIn: result.application.linkedInUrl,
       github: result.application.githubUrl,
       portfolio: result.application.portfolioUrl,
-      
+
       interviewDate: result.date,
       interviewLanguage: result.application.language,
       recordingUrl: result.recordingUrl,
       transcript: result.transcript,
-      
+
       scores: {
         communication: result.evaluation?.scores?.comms || 0,
         problemSolving: result.evaluation?.scores?.reasoning || 0,
@@ -229,36 +229,36 @@ const App: React.FC = () => {
         professionalism: Math.round((result.evaluation?.scores?.overall || 0) * 0.9),
         overall: result.evaluation?.scores?.overall || 0,
       },
-      
+
       detectedSkills: (result.application.parsedSkills || []).map(skill => ({
         skill,
         confidence: 70 + Math.random() * 30,
         category: 'software_engineering' as const,
       })),
-      
+
       assessedLevel: result.level || 'middle',
-      
+
       summary: result.evaluation?.summary || '',
       strengths: result.evaluation?.strengths || [],
       areasForImprovement: result.evaluation?.areasForImprovement || [],
-      
+
       antiCheatReport: result.antiCheatReport,
-      
+
       preferredRoles: [result.job.title],
       availability: 'immediately',
       workType: ['remote'],
-      
+
       status: 'verified',
       verifiedAt: new Date().toISOString(),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
-    
+
     setUniversalProfile(profile);
-    
+
     // Add to talent pool for hirers
     setTalentPool(prev => [...prev, profile]);
-    
+
     // Generate job matches
     const matches: JobMatch[] = jobs.map(job => ({
       jobId: job.id,
@@ -271,9 +271,9 @@ const App: React.FC = () => {
       status: 'new' as const,
       matchedAt: new Date().toISOString(),
     })).sort((a, b) => b.matchScore - a.matchScore);
-    
+
     setJobMatches(matches);
-    
+
     return profile;
   }, [user, jobs]);
 
@@ -285,16 +285,16 @@ const App: React.FC = () => {
     recordingBlob?: Blob
   ) => {
     if (route.name !== 'interviewLive') return;
-  
+
     const { jobId, applicationData } = route;
     const job = jobs.find(j => j.id === jobId);
     if (!job) return;
-  
+
     // The result is already generated by the pipeline, so we just map it and display it.
     // No more loading state needed here.
     setRoute({ name: 'interviewResult', resultIndex: interviewResults.length });
     setIsLoadingResult(false);
-  
+
     const mappedEvaluation = {
       scores: {
         comms: evaluation.communication || 0,
@@ -309,7 +309,7 @@ const App: React.FC = () => {
       strengths: evaluation.strengths || [],
       areasForImprovement: evaluation.areasForImprovement || [],
     };
-  
+
     const newResult: InterviewResult = {
       job,
       date: new Date().toISOString(),
@@ -320,16 +320,16 @@ const App: React.FC = () => {
       antiCheatReport,
       recordingBlob, // Save the actual blob for persistence
     };
-  
+
     setInterviewResults(prev => [...prev, newResult]);
     // Save to IndexedDB
     saveInterviewResult(newResult).catch(err => console.error("Failed to save result to DB", err));
-    
+
     // If this is a universal interview (job id 999), create universal profile
     if (jobId === 999 || !universalProfile) {
       createUniversalProfile(newResult);
     }
-  
+
   }, [route, jobs, interviewResults.length, universalProfile, createUniversalProfile]);
 
   const handleHire = (resultIndex: number, hourlyRate: number) => {
@@ -344,11 +344,11 @@ const App: React.FC = () => {
     };
     setContracts(prev => [...prev, newContract]);
   };
-  
+
   const handleFund = (contractId: number, amount: number) => {
     setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: 'Active', escrowAmount: c.escrowAmount + amount } : c));
   };
-  
+
   const handleRelease = (contractId: number) => {
     setContracts(prev => prev.map(c => c.id === contractId ? { ...c, status: 'Completed', escrowAmount: 0 } : c));
   };
@@ -356,21 +356,21 @@ const App: React.FC = () => {
   const handleDomainExpertComplete = (expertData: any) => {
     console.log("Domain Expert data submitted:", expertData);
     alert("Thank you for your submission! We will review your information and get back to you.");
-    setRoute({ name: 'home' }); 
+    setRoute({ name: 'home' });
   };
-  
+
   const handleSaveAdminSettings = (settings: AdminSettings) => {
     try {
-        localStorage.setItem('adminSettings', JSON.stringify(settings));
-        setAdminSettings(settings);
-        alert('Admin settings saved successfully!');
-        setRoute({ name: 'home' });
+      localStorage.setItem('adminSettings', JSON.stringify(settings));
+      setAdminSettings(settings);
+      alert('Admin settings saved successfully!');
+      setRoute({ name: 'home' });
     } catch (error) {
-        console.error("Could not save admin settings to localStorage", error);
-        alert('Failed to save settings.');
+      console.error("Could not save admin settings to localStorage", error);
+      alert('Failed to save settings.');
     }
   };
-  
+
   // Handle universal interview start
   const handleStartUniversalInterview = (applicationData: ApplicationData) => {
     // Use a generic "Universal Interview" job
@@ -383,11 +383,11 @@ const App: React.FC = () => {
       hired_this_month: 0,
       posted_days_ago: 0,
     };
-    
-    setRoute({ 
-      name: 'interviewLive', 
-      jobId: universalJob.id, 
-      applicationData 
+
+    setRoute({
+      name: 'interviewLive',
+      jobId: universalJob.id,
+      applicationData
     });
   };
 
@@ -396,12 +396,12 @@ const App: React.FC = () => {
     if (userRole === 'hirer' && route.name === 'home') {
       return <HirerDashboardPage results={interviewResults} contracts={contracts} onHire={handleHire} onFund={handleFund} onRelease={handleRelease} setRoute={setRoute} />;
     }
-    
+
     // Candidates see CandidateHomePage with One Interview model
     if (userRole === 'candidate' && route.name === 'home') {
       return <CandidateHomePage setRoute={setRoute} universalProfile={universalProfile} jobMatches={jobMatches} jobs={jobs} interviewResults={interviewResults} />;
     }
-    
+
     switch (route.name) {
       case 'home': return <HomePage setRoute={setRoute} />;
       case 'explore': return <ExplorePage jobs={jobs} setRoute={setRoute} />;
@@ -442,50 +442,50 @@ const App: React.FC = () => {
   if (!user) {
     // Check if trying to access protected route - show minimal background with login modal
     const isProtectedRoute = !['home', 'explore', 'job', 'hirerLanding'].includes(route.name);
-    
+
     return (
-        <div className="bg-neutral-950 text-neutral-100 font-sans min-h-screen">
-            {isProtectedRoute ? (
-                // Protected route - show minimal dark background (no landing page)
-                <div className="min-h-screen flex items-center justify-center">
-                    <div className="text-center">
-                        <h1 className="text-2xl font-bold mb-4">Wind AI</h1>
-                        <p className="text-neutral-400">Пожалуйста, войдите для продолжения</p>
-                    </div>
-                </div>
-            ) : route.name === 'home' ? (
-                // Landing Page for visitors
-                <LandingPage setRoute={setRoute} />
-            ) : route.name === 'hirerLanding' ? (
-                // Landing Page for hirers
-                <HirerLandingPage setRoute={setRoute} />
-            ) : route.name === 'explore' ? (
-                // Public job listing
-                <main className="p-4 sm:p-6 lg:p-8">
-                    <div className="mx-auto max-w-6xl">
-                        <ExplorePage jobs={jobs} setRoute={setRoute} />
-                    </div>
-                </main>
-            ) : route.name === 'job' ? (
-                // Public job details
-                <main className="p-4 sm:p-6 lg:p-8">
-                    <div className="mx-auto max-w-6xl">
-                        <JobPage job={jobs.find(j => j.id === route.id)!} setRoute={setRoute} />
-                    </div>
-                </main>
-            ) : null}
-            <LoginModal isOpen={isLoginChoiceOpen} onClose={closeLoginChoice} />
-            <OnboardingModal isOpen={isOnboardingOpen} onClose={closeLoginChoice} />
-        </div>
+      <div className="bg-neutral-950 text-neutral-100 font-sans min-h-screen">
+        {isProtectedRoute ? (
+          // Protected route - show minimal dark background (no landing page)
+          <div className="min-h-screen flex items-center justify-center">
+            <div className="text-center">
+              <h1 className="text-2xl font-bold mb-4">Wind AI</h1>
+              <p className="text-neutral-400">Пожалуйста, войдите для продолжения</p>
+            </div>
+          </div>
+        ) : route.name === 'home' ? (
+          // Landing Page for visitors
+          <LandingPage setRoute={setRoute} />
+        ) : route.name === 'hirerLanding' ? (
+          // Landing Page for hirers
+          <HirerLandingPage setRoute={setRoute} />
+        ) : route.name === 'explore' ? (
+          // Public job listing
+          <main className="p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto max-w-6xl">
+              <ExplorePage jobs={jobs} setRoute={setRoute} />
+            </div>
+          </main>
+        ) : route.name === 'job' ? (
+          // Public job details
+          <main className="p-4 sm:p-6 lg:p-8">
+            <div className="mx-auto max-w-6xl">
+              <JobPage job={jobs.find(j => j.id === route.id)!} setRoute={setRoute} />
+            </div>
+          </main>
+        ) : null}
+        <LoginModal isOpen={isLoginChoiceOpen} onClose={closeLoginChoice} />
+        <OnboardingModal isOpen={isOnboardingOpen} onClose={closeLoginChoice} />
+      </div>
     );
   }
 
   // LOGGED IN VIEW
   return (
     <>
-        <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>
+      <LoggedInLayout setRoute={setRoute} openSearchModal={() => setIsSearchModalOpen(true)}>
         {renderContent()}
-        </LoggedInLayout>
+      </LoggedInLayout>
       <SearchModal isOpen={isSearchModalOpen} onClose={() => setIsSearchModalOpen(false)} jobs={jobs} setRoute={setRoute} />
     </>
   );

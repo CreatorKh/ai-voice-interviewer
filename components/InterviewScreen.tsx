@@ -1,10 +1,12 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { GoogleGenerativeAI, LiveServerMessage, Modality } from '@google/generative-ai';
+import { GoogleGenAI, LiveServerMessage, Modality } from '@google/genai';
 import { TranscriptEntry, Speaker, Job, ApplicationData, AntiCheatReport } from '../types';
 import { finalizeInterview, InterviewState } from '../services/interviewPipeline/pipeline';
 import { getQuestionForRoleAndStage } from '../services/interviewPipeline/questionBank';
 import LogOutIcon from './icons/StopIcon';
+import { getEnhancedAudioConstraints } from '../services/noiseSuppression';
+import { createDTLNNoiseSuppressor, DTLNNoiseSuppressor, DTLNConfig } from '../services/audioProcessing/dtlnNoiseSuppression';
 
 // --- Audio Utils (Adapted from Gemini Live API Docs) ---
 
@@ -491,16 +493,32 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
             outputNode.connect(aiAnalyser);
             aiAnalyserRef.current = aiAnalyser;
 
-            // 2. Mic Stream - Use Browser Native Processing
-            const preferredMicId = localStorage.getItem('preferredMicId');
+            // 2. Mic Stream - Use DTLN Neural Network Noise Suppression
+            const preferredMicId = localStorage.getItem('preferredMicId') || undefined;
+            const savedLang = localStorage.getItem('preferredLanguage');
+            // Update application data with saved language if it exists (simple mapping)
+            if (savedLang) {
+                applicationData.language = savedLang === 'En' ? 'English' : 'Russian';
+            }
+            
+            // Force Strong Noise Suppression (User Request)
+            const nsEnabled = true;
+            const nsLevel = 'high';
+            
+            const dtlnConfig: DTLNConfig = {
+                enabled: nsEnabled,
+                aggressiveness: nsLevel,
+            };
+            
+            const enhancedAudioConstraints = getEnhancedAudioConstraints(preferredMicId, {
+                enabled: nsEnabled,
+                aggressiveness: nsLevel,
+                vadEnabled: true,
+            });
+            console.log('[Audio] Using DTLN Neural Network noise suppression with config:', dtlnConfig);
+            
             const stream = await navigator.mediaDevices.getUserMedia({
-                audio: {
-                    channelCount: 1,
-                    echoCancellation: true,
-                    noiseSuppression: true,
-                    autoGainControl: true,
-                    deviceId: preferredMicId ? { exact: preferredMicId } : undefined
-                },
+                audio: enhancedAudioConstraints,
                 video: { facingMode: 'user' }
             });
 
@@ -533,18 +551,45 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
                 videoRef.current.srcObject = stream;
             }
 
-            // Mic Analyser
+            // Mic Source with DTLN Neural Network Noise Suppression
             const source = inputCtx.createMediaStreamSource(stream);
+            
+            // Create DTLN noise suppressor (Neural Network based - like Krisp)
+            let noiseSuppressor: DTLNNoiseSuppressor | null = null;
+            let cleanAudioNode: AudioNode = source; // Fallback to source if suppression disabled
+            
+            if (dtlnConfig.enabled) {
+                try {
+                    noiseSuppressor = await createDTLNNoiseSuppressor(
+                        inputCtx, 
+                        source, 
+                        dtlnConfig
+                    );
+                    cleanAudioNode = noiseSuppressor.getOutputNode();
+                    const isDTLN = noiseSuppressor.isDTLNActive();
+                    console.log(`[Audio] ✅ ${isDTLN ? 'DTLN Neural Network' : 'Fallback'} noise suppression initialized`);
+                } catch (err) {
+                    console.warn('[Audio] DTLN noise suppression failed, using direct input:', err);
+                    cleanAudioNode = source;
+                }
+            } else {
+                console.log('[Audio] Noise suppression disabled by user');
+            }
+            
+            // Use the clean audio for analysis
             const micAnalyser = inputCtx.createAnalyser();
             micAnalyser.fftSize = 64;
-            source.connect(micAnalyser);
+            cleanAudioNode.connect(micAnalyser);
             micAnalyserRef.current = micAnalyser;
 
             // 3. Processor: Downsample to 16kHz and Send
             console.log(`Audio Input Rate: ${inputCtx.sampleRate}Hz. Downsampling to 16000Hz.`);
 
             // CRITICAL CHECK AGAIN
-            if (inputCtx.state === 'closed') return false;
+            if (inputCtx.state === 'closed') {
+                noiseSuppressor?.destroy();
+                return false;
+            }
 
             const scriptProcessor = inputCtx.createScriptProcessor(4096, 1, 1);
             scriptProcessor.onaudioprocess = (e) => {
@@ -562,12 +607,13 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
                     session.sendRealtimeInput({ media: pcmBlob });
                 });
 
-                // Visualizer
+                // Visualizer - check RMS after noise suppression
                 const rms = Math.sqrt(inputData.reduce((s, v) => s + v * v, 0) / inputData.length);
                 setIsMicActive(rms > 0.01);
             };
 
-            source.connect(scriptProcessor);
+            // Connect clean audio (after noise suppression) to processor
+            cleanAudioNode.connect(scriptProcessor);
             scriptProcessor.connect(inputCtx.destination);
 
             // 4. Mix Audio for Recording (Mic + AI)
@@ -621,7 +667,7 @@ const InterviewScreen: React.FC<InterviewScreenProps> = ({ job, onEnd, applicati
         if (!isMountedRef.current) return;
 
         try {
-            const ai = new GoogleGenerativeAI({ apiKey: process.env.API_KEY as string });
+            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
             const resumeContext = `
 Name: ${applicationData.name}
@@ -656,6 +702,53 @@ ROLE: You are Zarina, an expert interviewer from Wind AI.
 Your goal is to UNCOVER THE CANDIDATE'S STRENGTHS.
 You are NOT here to "fail" or "trick" the candidate. You are a talent scout looking for reasons to HIRE.
 
+=== ABSOLUTE RULE #1: CONTEXTUAL AWARENESS ===
+**YOU ARE AN INTELLIGENT INTERVIEWER, NOT A ROBOT.**
+
+**DETECT AND RESPOND TO CONTEXT:**
+1. If candidate gives a REAL answer → engage, ask follow-ups, dig deeper.
+2. If candidate gives NONSENSE/GIBBERISH → politely ask to clarify or give a serious answer.
+3. If candidate is MOCKING/TROLLING → warn them once, then end the interview if it continues.
+4. If candidate gives VERY SHORT/LAZY answers → push for more detail.
+
+**EXAMPLES OF BAD BEHAVIOR TO DETECT:**
+${applicationData.language === 'English'
+    ? `- Obvious jokes instead of answers: "I'm a wizard", "42", "your mom"
+- Mockery: "This is stupid", "Why should I answer this?"
+- Gibberish: "asdfasdf", random sounds, singing
+- Off-topic rambling unrelated to the question
+- Hostile/rude responses`
+    : `- Очевидные шутки вместо ответов: "Я волшебник", "42", "твоя мама"
+- Насмешки: "Это тупо", "Зачем мне отвечать?"
+- Бессмыслица: "асдфасдф", случайные звуки, пение
+- Уход от темы, разговоры не по вопросу
+- Грубые/хамские ответы`
+}
+
+**YOUR RESPONSE TO UNCLEAR ANSWERS (STAY PROFESSIONAL AND FRIENDLY):**
+${applicationData.language === 'English'
+    ? `1st time: "I want to make sure I understand you correctly. Could you tell me more specifically about your experience with this?"
+2nd time: "I'd really like to learn more about your background. Could you share a concrete example from your work?"
+3rd time: "I appreciate your time today. Let's wrap up here - we have enough information. Thank you for participating, and we'll be in touch. Take care!"`
+    : `1-й раз: "Хочу убедиться, что правильно вас понимаю. Можете рассказать конкретнее о вашем опыте в этой области?"
+2-й раз: "Мне очень интересно узнать больше о вашем бэкграунде. Можете привести конкретный пример из вашей практики?"
+3-й раз: "Благодарю вас за уделённое время. Давайте на этом завершим - у нас достаточно информации. Спасибо за участие, мы с вами свяжемся. Всего доброго!"`
+}
+
+**TONE: Always remain warm, professional and respectful. Never sound threatening or condescending.**
+
+**LAZY/SHORT ANSWER HANDLING:**
+${applicationData.language === 'English'
+    ? `If answer is too short (1-2 words like "yes", "no", "I don't know"):
+"Could you elaborate? I need more detail to understand your experience."
+"Can you give me a specific example?"
+"What exactly do you mean by that?"`
+    : `Если ответ слишком короткий (1-2 слова типа "да", "нет", "не знаю"):
+"Можете раскрыть подробнее? Мне нужно больше деталей чтобы понять ваш опыт."
+"Приведите конкретный пример?"
+"Что именно вы имеете в виду?"`
+}
+
 === CORE PHILOSOPHY ===
 1. **Find Strengths**: If the candidate struggles with a topic, don't drill them into the ground. Gently pivot to a related topic where they might shine.
 2. **Be a Partner**: Help them formulate their thoughts. If they are nervous, reassure them.
@@ -688,15 +781,40 @@ YOU MUST SPEAK **ONLY** IN ${applicationData.language || 'Russian'} - THIS IS NO
 4. NEVER repeat the greeting. If the connection drops or user says "hello" again, just acknowledge and move to the NEXT question.
 5. After greeting, wait for the candidate to respond, then proceed to Phase 1.
 
-=== LISTENING & NOISE RULES ===
-1. IGNORE NOISE: If the user input is just noise, silence, or very short/meaningless sounds (like "<noise>", "...", "а", "м"), DO NOT accept it as an answer.
-2. Ask for clarification in ${applicationData.language || 'Russian'}: ${applicationData.language === 'English' ? '"Sorry, I didn\'t catch that. Could you repeat?" or "Could you clarify?"' : '"Не расслышала, повторите пожалуйста" or "Можете уточнить?"'}
-3. DO NOT acknowledge noise with words like "I see" or "Понятно".
-4. **CRITICAL: DO NOT INTERRUPT**.
-   - Candidates often pause to think.
-   - WAIT at least 5-7 SECONDS of complete silence before assuming they finished.
-   - If they say "Umm...", "Well...", "Let me think...", "Give me a second" - WAIT.
-   - Better to wait too long than to interrupt their thought process.
+=== ACTIVE LISTENING RULES (CRITICAL - HIGHEST PRIORITY) ===
+**YOU MUST LISTEN AND RESPOND TO WHAT THE CANDIDATE ACTUALLY SAYS.**
+
+1. **REACT TO EVERY ANSWER**: 
+   - After the candidate finishes speaking, you MUST acknowledge their specific answer.
+   - Reference something SPECIFIC they said: "You mentioned X, tell me more about that"
+   - NEVER ignore what they said and just ask the next question.
+
+2. **FORBIDDEN BEHAVIOR**:
+   - DO NOT ask questions robotically without acknowledging answers.
+   - DO NOT say "Great, next question..." without commenting on their answer.
+   - DO NOT repeat questions they already answered.
+   - DO NOT act like you didn't hear them.
+
+3. **CORRECT BEHAVIOR EXAMPLES**:
+   ${applicationData.language === 'English' 
+       ? `- Candidate: "I worked on a Python project for data analysis"
+     You: "Interesting! Python for data analysis. What specific libraries did you use? Pandas, NumPy?"
+   - Candidate: "I led a team of 5 people"
+     You: "A team of 5 - that's a good size. What was the biggest challenge in managing them?"`
+       : `- Кандидат: "Я работал над проектом на Python для анализа данных"
+     Вы: "Интересно! Python для анализа данных. Какие библиотеки использовали? Pandas, NumPy?"
+   - Кандидат: "Я руководил командой из 5 человек"
+     Вы: "Команда из 5 человек - хороший размер. Что было самым сложным в управлении?"`
+   }
+
+4. **NOISE HANDLING**:
+   - If input is noise/silence/meaningless sounds, ask to repeat: ${applicationData.language === 'English' ? '"Sorry, I didn\'t catch that. Could you repeat?"' : '"Не расслышала, повторите пожалуйста"'}
+   - DO NOT acknowledge noise with "Понятно" or "I see".
+
+5. **WAIT FOR COMPLETE ANSWERS**:
+   - Wait 5-7 SECONDS of silence before assuming they finished.
+   - If they say "Umm...", "Let me think..." - WAIT.
+   - Better to wait too long than to interrupt.
 
 === CONVERSATION STYLE ===
 1. Be WARM and ENCOURAGING - smile through your voice.
@@ -753,22 +871,36 @@ PHASE 5 - WRAP UP (2-3 min):
 - ${applicationData.language === 'English' ? '"Is there anything you\'d like to share that we haven\'t covered?"' : '"Есть ли что-то, о чём вы хотели бы рассказать, но мы не затронули?"'}
 - Closing: ${applicationData.language === 'English' ? '"Thank you for your time! It was great talking with you. We\'ll be in touch soon. Goodbye!"' : '"Спасибо за уделённое время! Было очень интересно пообщаться. Мы свяжемся с вами в ближайшее время. Всего доброго!"'}
 
-=== FOLLOW-UP RULES ===
-After EVERY answer, ask at least ONE follow-up question IN ${applicationData.language || 'Russian'}:
+=== FOLLOW-UP RULES (MANDATORY) ===
+**AFTER EVERY ANSWER, YOU MUST:**
+1. First, acknowledge what they said with a brief comment referencing their specific answer.
+2. Then, ask a follow-up question BASED ON what they just told you.
+
+**PATTERN TO FOLLOW**:
 ${applicationData.language === 'English'
-                    ? `- "Tell me more about..."
-- "What were the specific results?"
-- "What challenges did you face?"
-- "How did you measure that?"
-- "What would you do differently now?"
-- "Why did you choose that approach?"`
-                    : `- "Расскажите подробнее о..."
-- "Какие были конкретные результаты?"
-- "С какими трудностями столкнулись?"
-- "Как вы это измеряли?"
-- "Что бы вы сделали по-другому сейчас?"
-- "Почему вы выбрали именно такой подход?"`
+                    ? `"[Brief acknowledgment of their answer]. [Follow-up question about what they said]"
+Example: "Machine learning for fraud detection - that sounds complex. What was your accuracy rate on that model?"`
+                    : `"[Краткий комментарий к их ответу]. [Уточняющий вопрос по тому, что они сказали]"
+Пример: "Машинное обучение для детекции фрода - звучит сложно. Какая была точность вашей модели?"`
                 }
+
+**FOLLOW-UP TEMPLATES** (adapt to their answer):
+${applicationData.language === 'English'
+                    ? `- "You mentioned [X], tell me more about that"
+- "What were the specific results of [what they described]?"
+- "What challenges did you face with [their project/task]?"
+- "How did you measure success in [their context]?"
+- "What would you do differently with [their situation] now?"
+- "Why did you choose [their approach] over alternatives?"`
+                    : `- "Вы упомянули [X], расскажите об этом подробнее"
+- "Какие были конкретные результаты [того, что они описали]?"
+- "С какими трудностями столкнулись в [их проект/задача]?"
+- "Как вы измеряли успех в [их контекст]?"
+- "Что бы вы сделали по-другому в [их ситуация] сейчас?"
+- "Почему выбрали [их подход] а не альтернативы?"`
+                }
+
+**FORBIDDEN**: Moving to the next planned question without acknowledging and following up on their answer.
 
 === PACING ===
 - Interview MUST last at least 15 minutes.

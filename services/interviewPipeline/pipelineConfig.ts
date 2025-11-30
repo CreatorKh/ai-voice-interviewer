@@ -4,19 +4,21 @@ export type DifficultyLevel = 1 | 2 | 3 | 4 | 5;
 
 export const PIPELINE_CONFIG = {
   models: {
-    interviewer: "models/gemini-1.5-flash-latest", // Text model for question planning (not used in live mode)
-    evaluator: "models/gemini-1.5-flash-latest", // Text model for evaluation (light mode during interview)
-    antiCheat: "models/gemini-1.5-flash-latest", // Text model for anti-cheat
-    summary: "models/gemini-1.5-flash-latest", // Text model for summary (draft pass)
-    summaryRefine: "gpt-4o", // Powerful model for refine pass (final evaluation)
-    // Альтернатива: если используется Gemini, можно использовать "models/gemini-2.5-pro"
+    // Интервьюер на Gemini (для live audio), оценка на GPT-4o (для точности)
+    interviewer: "gemini-2.0-flash-exp", // Gemini для быстрого интервьюирования
+    evaluator: "gpt-4o", // GPT-4o для точной оценки ответов
+    antiCheat: "gpt-4o", // GPT-4o для надежного детектирования читинга
+    summary: "gpt-4o", // GPT-4o для качественного summary
+    summaryRefine: "gpt-4o", // GPT-4o для финальной полировки
+    // Live Audio модель (Gemini только)
+    liveAudio: "models/gemini-2.0-flash-live-001",
   },
 
   limits: {
-    maxLLMCallsPerInterview: 12,         // жёсткий лимит
-    minSecondsBetweenLLMCalls: 6,        // не спамим
-    maxTurnsForLLMEval: 10,              // максимум вопросов с LLM-оценкой
-    useHeuristicsOnlyAfterQuota: true,   // потом только локальные эвристики
+    maxLLMCallsPerInterview: 25,         // увеличенный лимит для качественной оценки
+    minSecondsBetweenLLMCalls: 2,        // быстрее между вызовами
+    maxTurnsForLLMEval: 20,              // больше вопросов с LLM-оценкой
+    useHeuristicsOnlyAfterQuota: true,   // fallback на эвристики после квоты
   },
 
   weights: {

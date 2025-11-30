@@ -25,7 +25,7 @@ const ProfileAccountTab: React.FC = () => {
                  <div className="p-4 rounded-lg border border-white/10 bg-white/5">
                      <ToggleSwitch
                         label="Generative profile pictures"
-                        subLabel="Let Mercor generate a professional photo from your AI interview. Your image will be private and only visible to employers you apply to."
+                        subLabel="Let Wind AI generate a professional photo from your AI interview. Your image will be private and only visible to employers you apply to."
                         isEnabled={profileData.generativeProfilePictures}
                         setIsEnabled={(val) => updateProfileData({ generativeProfilePictures: val })}
                     />
@@ -48,7 +48,7 @@ const ProfileAccountTab: React.FC = () => {
             
             <section className="space-y-4 p-4 rounded-lg border border-red-500/30 bg-red-900/20">
                 <h3 className="font-semibold text-red-400">Delete account</h3>
-                <p className="text-sm text-neutral-400">Permanently delete the account and all data from the Mercor platform.</p>
+                <p className="text-sm text-neutral-400">Permanently delete the account and all data from the Wind AI platform.</p>
                 <Button className="!bg-red-600/80 hover:!bg-red-600/100 text-white">Delete account</Button>
             </section>
         </div>

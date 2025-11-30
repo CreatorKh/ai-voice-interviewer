@@ -22,9 +22,9 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       ...prev,
       provider,
       // Устанавливаем дефолтные модели для каждого провайдера
-      modelId: provider === "openai" 
-        ? "gpt-4o" 
-        : "models/gemini-1.5-flash-latest",
+      modelId: provider === "openai"
+        ? "gpt-4o"
+        : "gemini-1.5-flash",
     }));
   };
 
@@ -73,7 +73,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
       "models/gemini-2.5-pro",
       "models/gemini-2.5-flash-native-audio-preview-09-2025",
       "models/gemini-1.5-pro-latest",
-      "models/gemini-1.5-flash-latest",
+      "gemini-1.5-flash",
     ],
   };
 
@@ -113,22 +113,20 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
             <div className="flex gap-3">
               <button
                 onClick={() => handleProviderChange("openai")}
-                className={`flex-1 p-3 rounded-lg border transition ${
-                  config.provider === "openai"
+                className={`flex-1 p-3 rounded-lg border transition ${config.provider === "openai"
                     ? "border-cyan-400 bg-cyan-400/10 text-cyan-400"
                     : "border-white/10 bg-white/5 hover:bg-white/10"
-                }`}
+                  }`}
               >
                 <div className="font-semibold">OpenAI</div>
                 <div className="text-xs opacity-70 mt-1">GPT-4, GPT-3.5</div>
               </button>
               <button
                 onClick={() => handleProviderChange("google_gemini")}
-                className={`flex-1 p-3 rounded-lg border transition ${
-                  config.provider === "google_gemini"
+                className={`flex-1 p-3 rounded-lg border transition ${config.provider === "google_gemini"
                     ? "border-cyan-400 bg-cyan-400/10 text-cyan-400"
                     : "border-white/10 bg-white/5 hover:bg-white/10"
-                }`}
+                  }`}
               >
                 <div className="font-semibold">Google Gemini</div>
                 <div className="text-xs opacity-70 mt-1">Gemini 2.5, 1.5</div>
@@ -146,7 +144,7 @@ const AdminPanel: React.FC<AdminPanelProps> = ({ onClose }) => {
               type="text"
               value={config.modelId}
               onChange={(e) => setConfig(prev => ({ ...prev, modelId: e.target.value }))}
-              placeholder={config.provider === "openai" ? "gpt-4o" : "models/gemini-1.5-flash-latest"}
+              placeholder={config.provider === "openai" ? "gpt-4o" : "gemini-1.5-flash"}
               className="w-full rounded-xl bg-white/[0.05] border border-white/10 p-3 text-sm placeholder:text-neutral-400 focus:outline-none focus:border-cyan-400/50"
             />
             <div className="text-xs text-neutral-400">

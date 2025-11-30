@@ -1,14 +1,14 @@
 // Scoring Engine: Evaluates candidate answers
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { AnswerEvaluation, SkillUpdate, QuestionPlan } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 
 export class ScoringEngine {
-  private genAI: GoogleGenerativeAI;
+  private genAI: GoogleGenAI;
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenAI({ apiKey });
   }
 
   async evaluateAnswer(
@@ -17,7 +17,7 @@ export class ScoringEngine {
     questionPlan: QuestionPlan,
     conversationHistory: string[]
   ): Promise<AnswerEvaluation> {
-    const model = this.genAI.getGenerativeModel({ model: TEXT_MODEL_ID });
+
 
     const historyContext = conversationHistory.length > 0
       ? `Previous conversation:\n${conversationHistory.slice(-3).join('\n')}\n`
@@ -61,9 +61,11 @@ Evaluation criteria:
 Return ONLY valid JSON, no additional text.`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const jsonText = response.text().trim();
+      const result = await this.genAI.models.generateContent({
+        model: TEXT_MODEL_ID,
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+      const jsonText = result.text ? result.text.trim() : "";
 
       // Extract JSON from response
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);

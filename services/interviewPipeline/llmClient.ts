@@ -1,7 +1,8 @@
 // llmClient.ts
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { GoogleGenAI } from "@google/genai";
 import { PIPELINE_CONFIG } from "./pipelineConfig";
 import { getLLMConfig } from "../../config/llmConfig";
+import { normalizeModelId } from "../../config/modelUtils";
 
 // Динамический импорт OpenAI для уменьшения размера бандла
 let OpenAI: any = null;
@@ -35,7 +36,15 @@ export type LLMResult<T = any> = {
   error?: string;
 };
 
-const LLM_TIMEOUT_MS = 2500; // 2.5 секунды таймаут
+const LLM_TIMEOUT_MS = 15000; // 15 секунд таймаут для GPT-4o (он медленнее)
+
+// Определяем провайдера на основе названия модели
+function getProviderForModel(modelId: string): "openai" | "google_gemini" {
+  if (modelId.startsWith("gpt-") || modelId.startsWith("o1") || modelId.startsWith("chatgpt")) {
+    return "openai";
+  }
+  return "google_gemini";
+}
 
 export async function safeGenerateJSON(opts: {
   model: string;
@@ -82,16 +91,20 @@ export async function safeGenerateJSON(opts: {
     const startTime = Date.now();
     let text: string;
 
-    // Выбор провайдера
-    if (config.provider === "openai") {
+    // Автоматически определяем провайдера на основе модели
+    const modelProvider = getProviderForModel(opts.model);
+    const useOpenAI = modelProvider === "openai" && config.apiKey;
+
+    // Выбор провайдера (приоритет модели из opts.model)
+    if (useOpenAI || config.provider === "openai") {
       const OpenAIClass = await getOpenAI();
       // ВАЖНО: dangerouslyAllowBrowser разрешает использование API ключа в браузере
       // В продакшене лучше использовать прокси-сервер для безопасности
-      const openai = new OpenAIClass({ 
+      const openai = new OpenAIClass({
         apiKey: config.apiKey,
         dangerouslyAllowBrowser: true // Разрешаем использование в браузере (для разработки)
       });
-      
+
       const response = await Promise.race([
         openai.chat.completions.create({
           model: opts.model || config.modelId,
@@ -109,13 +122,14 @@ export async function safeGenerateJSON(opts: {
 
       clearTimeout(timeoutId);
       text = response.choices[0]?.message?.content || "";
-      
+
     } else if (config.provider === "google_gemini") {
-      const genAI = new GoogleGenerativeAI(config.apiKey);
-      const model = genAI.getGenerativeModel({ model: opts.model || config.modelId });
-      
+      const genAI = new GoogleGenAI({ apiKey: config.apiKey });
+      const modelId = normalizeModelId(opts.model || config.modelId, config.provider);
+
       const response = await Promise.race([
-        model.generateContent({
+        genAI.models.generateContent({
+          model: modelId,
           contents: [
             {
               role: "user",
@@ -129,7 +143,7 @@ export async function safeGenerateJSON(opts: {
               ],
             },
           ],
-          generationConfig: {
+          config: {
             responseMimeType: 'application/json',
           },
         }),
@@ -139,13 +153,13 @@ export async function safeGenerateJSON(opts: {
       ]);
 
       clearTimeout(timeoutId);
-      text = response.response.text();
+      text = response.text || "";
     } else {
       throw new Error(`Unknown provider: ${config.provider}`);
     }
 
     const elapsed = Date.now() - startTime;
-    
+
     if (elapsed > LLM_TIMEOUT_MS - 100) {
       console.warn(`[LLM] slow response (${elapsed}ms), but got result`);
     }
@@ -157,7 +171,7 @@ export async function safeGenerateJSON(opts: {
       const jsonMatch = text.match(/\{[\s\S]*\}/);
       const finalJson = jsonMatch ? jsonMatch[0] : text;
       const parsed = JSON.parse(finalJson);
-      
+
       return {
         ok: true,
         fromLLM: true,
@@ -176,7 +190,7 @@ export async function safeGenerateJSON(opts: {
     }
   } catch (err: any) {
     clearTimeout(timeoutId);
-    
+
     // Проверка на таймаут
     if (err?.message === 'LLM_TIMEOUT' || err?.name === 'AbortError') {
       console.warn("[LLM] timeout, using fallback");
@@ -202,7 +216,7 @@ export async function safeGenerateJSON(opts: {
         error: err?.message || String(err),
       };
     }
-    
+
     console.error("[LLM] call failed, using fallback:", err?.message || err);
     hasLLMDegraded = true;
     return {

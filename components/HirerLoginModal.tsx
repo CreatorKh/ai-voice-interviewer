@@ -28,12 +28,13 @@ const HirerLoginModal: React.FC<HirerLoginModalProps> = ({ isOpen, onClose }) =>
     email: '',
   });
   const [loading, setLoading] = useState(false);
+  const [consentGiven, setConsentGiven] = useState(false);
 
   if (!isOpen) return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.companyName || !formData.email) return;
+    if (!formData.companyName || !formData.email || !consentGiven) return;
     
     setLoading(true);
     // Simulate API call
@@ -51,6 +52,7 @@ const HirerLoginModal: React.FC<HirerLoginModalProps> = ({ isOpen, onClose }) =>
   };
 
   const handleDemoLogin = () => {
+    if (!consentGiven) return;
     loginAsMockHirer();
     setMode('choice');
   };
@@ -91,9 +93,24 @@ const HirerLoginModal: React.FC<HirerLoginModalProps> = ({ isOpen, onClose }) =>
         <div className="p-8">
           {mode === 'choice' ? (
             <div className="space-y-3">
+              {/* Consent checkbox */}
+              <label className="flex items-start gap-3 text-left mb-4 cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={consentGiven}
+                  onChange={(e) => setConsentGiven(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-xs text-neutral-400 group-hover:text-neutral-300">
+                  Я даю согласие на обработку персональных данных кандидатов и использование AI-интервью в соответствии с{' '}
+                  <a href="#" className="text-purple-400 hover:underline">Политикой конфиденциальности</a>
+                </span>
+              </label>
+
               <Button
                 onClick={handleDemoLogin}
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90"
+                disabled={!consentGiven}
+                className={`w-full ${consentGiven ? 'bg-gradient-to-r from-purple-500 to-pink-500 hover:opacity-90' : 'bg-neutral-700 cursor-not-allowed'}`}
               >
                 Войти как Demo HR
               </Button>
@@ -101,7 +118,8 @@ const HirerLoginModal: React.FC<HirerLoginModalProps> = ({ isOpen, onClose }) =>
               <Button
                 variant="outline"
                 onClick={() => setMode('form')}
-                className="w-full"
+                disabled={!consentGiven}
+                className={`w-full ${!consentGiven ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 Войти с данными компании
               </Button>
@@ -149,6 +167,19 @@ const HirerLoginModal: React.FC<HirerLoginModalProps> = ({ isOpen, onClose }) =>
                 />
               </div>
               
+              {/* Consent in form mode */}
+              <label className="flex items-start gap-3 text-left cursor-pointer group">
+                <input
+                  type="checkbox"
+                  checked={consentGiven}
+                  onChange={(e) => setConsentGiven(e.target.checked)}
+                  className="mt-1 w-5 h-5 rounded border-white/20 bg-white/5 text-purple-500 focus:ring-purple-500 focus:ring-offset-0 cursor-pointer"
+                />
+                <span className="text-xs text-neutral-400 group-hover:text-neutral-300">
+                  Я даю согласие на обработку данных
+                </span>
+              </label>
+              
               <div className="flex gap-3 pt-2">
                 <Button
                   type="button"
@@ -160,8 +191,8 @@ const HirerLoginModal: React.FC<HirerLoginModalProps> = ({ isOpen, onClose }) =>
                 </Button>
                 <Button
                   type="submit"
-                  disabled={loading}
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500"
+                  disabled={loading || !consentGiven}
+                  className={`flex-1 ${consentGiven ? 'bg-gradient-to-r from-purple-500 to-pink-500' : 'bg-neutral-700 cursor-not-allowed'}`}
                 >
                   {loading ? 'Вход...' : 'Войти'}
                 </Button>

@@ -95,7 +95,7 @@ const DomainExpertPage: React.FC<DomainExpertPageProps> = ({ job, applicationDat
           <form onSubmit={handleSubmit} className="space-y-6">
             <section className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 space-y-4">
               <div className="grid gap-1.5">
-                <label className="text-sm font-medium">What is the email address associated with your Mercor account?*</label>
+                <label className="text-sm font-medium">What is the email address associated with your Wind AI account?*</label>
                 <input type="email" name="email" value={formData.email} onChange={handleChange} required className="input-field" />
               </div>
               <div className="grid gap-1.5">

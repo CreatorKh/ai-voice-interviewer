@@ -1,7 +1,7 @@
 import React from 'react';
 import ArrowLeftIcon from '../icons/ArrowLeftIcon';
 import XIcon from '../icons/XIcon';
-import MercorLogo from '../icons/MercorLogo';
+import { WindLogo } from '../icons/WindLogo';
 
 interface OnboardingHeaderProps {
   title: string;
@@ -22,7 +22,7 @@ const OnboardingHeader: React.FC<OnboardingHeaderProps> = ({ title, onClose, onB
         </div>
         
         <div className="flex flex-col items-center text-center">
-            <MercorLogo className="w-10 h-10 mb-2 text-indigo-400" />
+            <div className="mb-2"><WindLogo size={40} /></div>
             <h2 className="text-xl font-bold">{title}</h2>
         </div>
 

@@ -1,14 +1,14 @@
 // Refine Pass: Refines question style and tone (more powerful model)
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { DraftQuestion, RefinedQuestion, ConversationState } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 
 export class RefinePass {
-  private genAI: GoogleGenerativeAI;
+  private genAI: GoogleGenAI;
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenAI({ apiKey });
   }
 
   async refineQuestion(
@@ -19,7 +19,7 @@ export class RefinePass {
     language: string
   ): Promise<RefinedQuestion> {
     // Use more powerful model for refinement
-    const model = this.genAI.getGenerativeModel({ model: TEXT_MODEL_ID });
+
 
     const prompt = `You are refining an interview question. Take the draft and improve it.
 
@@ -55,9 +55,11 @@ Return JSON:
 Return ONLY valid JSON, no additional text.`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const jsonText = response.text().trim();
+      const result = await this.genAI.models.generateContent({
+        model: TEXT_MODEL_ID,
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+      const jsonText = result.text ? result.text.trim() : "";
 
       // Extract JSON from response
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);

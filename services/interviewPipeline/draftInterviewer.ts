@@ -1,14 +1,14 @@
 // Draft Interviewer: Generates initial draft question (fast/cheap model)
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { QuestionPlan, DraftQuestion, ConversationState } from './types';
 import { TEXT_MODEL_ID } from '../../config/models';
 
 export class DraftInterviewer {
-  private genAI: GoogleGenerativeAI;
+  private genAI: GoogleGenAI;
 
   constructor(apiKey: string) {
-    this.genAI = new GoogleGenerativeAI(apiKey);
+    this.genAI = new GoogleGenAI({ apiKey });
   }
 
   async generateDraftQuestion(
@@ -20,9 +20,9 @@ export class DraftInterviewer {
     systemPrompt: string
   ): Promise<DraftQuestion> {
     // Use faster/cheaper model for draft
-    const model = this.genAI.getGenerativeModel({ model: TEXT_MODEL_ID });
 
-    const context = state.currentTopic 
+
+    const context = state.currentTopic
       ? `We're currently exploring: ${state.currentTopic}`
       : 'Starting a new topic';
 
@@ -68,9 +68,11 @@ The question should be:
 Return ONLY valid JSON, no additional text.`;
 
     try {
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const jsonText = response.text().trim();
+      const result = await this.genAI.models.generateContent({
+        model: TEXT_MODEL_ID,
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      });
+      const jsonText = result.text ? result.text.trim() : "";
 
       // Extract JSON from response
       const jsonMatch = jsonText.match(/\{[\s\S]*\}/);

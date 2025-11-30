@@ -1,4 +1,4 @@
-// services/interviewPipeline/pipeline.ts - Mercor-grade interview pipeline
+// services/interviewPipeline/pipeline.ts - Expert-grade interview pipeline
 
 import { QuestionPlan, PipelineState, TurnMetrics, AntiCheatSignal, QuestionType, RefinedQuestion, AnswerEvaluation } from './types';
 import { getQuestionForRoleAndStage, Stage } from './questionBank';
@@ -36,7 +36,7 @@ export class InterviewPipeline {
   private lastAnswerKeywords: string[] = [];
   private difficultyLevel: number = 2; // 1-5, starts at medium
   private turnEvalInProgress: boolean = false;
-  // Mercor-grade адаптивная логика: отслеживание тем и follow-up вопросов
+  // Expert-grade адаптивная логика: отслеживание тем и follow-up вопросов
   private currentTopic: string | null = null;
   private topicFollowUpCount: Map<string, number> = new Map(); // Сколько follow-up задано по теме
   private skippedTopics: Set<string> = new Set(); // Пропущенные темы (отрицательные ответы)
@@ -70,7 +70,7 @@ export class InterviewPipeline {
   }
 
   /**
-   * Mercor-grade question generation with follow-ups and adaptive difficulty
+   * Expert-grade question generation with follow-ups and adaptive difficulty
    * Uses question bank first, then falls back to LLM if needed
    */
   async generateNextQuestion(
@@ -113,7 +113,7 @@ export class InterviewPipeline {
     };
     const stage = stageMap[phase] || 'Background';
 
-    // Mercor-grade адаптивная логика: проверка на необходимость follow-up или переход к новой теме
+    // Expert-grade адаптивная логика: проверка на необходимость follow-up или переход к новой теме
     if (lastAnswer) {
       const lastTopic = lastAnswer.topic;
       const followUpCount = this.topicFollowUpCount.get(lastTopic) || 0;
@@ -173,7 +173,7 @@ export class InterviewPipeline {
   }
 
   /**
-   * Generate follow-up question for incomplete answer (Mercor-grade)
+   * Generate follow-up question for incomplete answer (Expert-grade)
    */
   private generateFollowUpQuestion(
     lastAnswer: { question: string; answer: string; topic: string; score: number },
@@ -450,7 +450,7 @@ export class InterviewPipeline {
       // Определяем тему ответа
       const answerTopic = this.inferTopic(answer) || plan?.topic || 'general';
 
-      // Mercor-grade адаптивная логика: проверка на отрицательный ответ
+      // Expert-grade адаптивная логика: проверка на отрицательный ответ
       const isNegative = this.isNegativeResponse(answer);
       if (isNegative) {
         // Пропускаем тему при отрицательном ответе
@@ -672,7 +672,7 @@ export class InterviewPipeline {
     return 'General Technical';
   }
 
-  // Mercor-grade: проверка на отрицательный ответ (нет опыта)
+  // Expert-grade: проверка на отрицательный ответ (нет опыта)
   private isNegativeResponse(answer: string): boolean {
     const lowerAnswer = answer.toLowerCase();
     const negativePatterns = [

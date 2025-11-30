@@ -45,8 +45,8 @@ const HomePage: React.FC<HomePageProps> = ({ setRoute }) => {
 
 
   const applications = [
-    { id: 1, title: "Data Scientist", rate: "$100 - $120", unit: "hour", type: "contract", company: "Mercor", started: "11/13/25" },
-    { id: 4, title: "Financial Forecaster", rate: "$105 - $140", unit: "hour", type: "contract", company: "Mercor", started: "11/13/25" },
+    { id: 1, title: "Data Scientist", rate: "$100 - $120", unit: "hour", type: "contract", company: "Wind AI", started: "11/13/25" },
+    { id: 4, title: "Financial Forecaster", rate: "$105 - $140", unit: "hour", type: "contract", company: "Wind AI", started: "11/13/25" },
   ];
 
   const tabs = ['Contracts', 'Offers', 'Applications', 'Assessments', 'Saved'];

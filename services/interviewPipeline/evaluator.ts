@@ -1,6 +1,7 @@
 // evaluator.ts
 import { PIPELINE_CONFIG } from "./pipelineConfig";
 import { safeGenerateJSON, LLMResult } from "./llmClient";
+import { generateScoringPrompt, getRubricForRole } from "./scoringRubrics";
 
 export type TurnEvaluation = {
   score: number; // 0–100
@@ -25,10 +26,10 @@ export type TurnEvaluation = {
 
 // Счетчик вызовов для контроля частоты LLM
 let turnEvaluationCount = 0;
-const LLM_EVALUATION_INTERVAL = 1; // Evaluate EVERY turn for Mercor-grade accuracy
+const LLM_EVALUATION_INTERVAL = 1; // Evaluate EVERY turn for Expert-grade accuracy
 const MIN_ANSWER_LENGTH_FOR_LLM = 10; // Even short answers should be evaluated by LLM if possible
 
-// Mercor-grade эвристическая оценка с проверкой ключевых слов и полноты
+// Expert-grade эвристическая оценка с проверкой ключевых слов и полноты
 function heuristicEvaluate(
   answer: string,
   question?: string,
@@ -200,9 +201,12 @@ export async function evaluateTurn(params: {
     return heuristicEvaluate(answer, question, expectedKeywords);
   }
 
+  // Генерируем специфичный промпт для оценки на основе роли
+  const roleSpecificPrompt = generateScoringPrompt(role);
+
   const llmResult: LLMResult = await safeGenerateJSON({
     model: PIPELINE_CONFIG.models.evaluator,
-    systemPrompt: PIPELINE_CONFIG.prompts.evaluation,
+    systemPrompt: `${PIPELINE_CONFIG.prompts.evaluation}\n\n${roleSpecificPrompt}`,
     userPrompt: `
 ROLE: ${role}
 QUESTION: ${question}
@@ -210,6 +214,11 @@ ANSWER: ${answer}
 
 INTERVIEW CONTEXT:
 ${transcriptSoFar}
+
+IMPORTANT: Score this answer STRICTLY based on the role-specific criteria above.
+- Be harsh on vague answers
+- Reward specific examples with metrics
+- Penalize rehearsed/generic answers
 `,
   });
 

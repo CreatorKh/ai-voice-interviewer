@@ -3,7 +3,7 @@ import React from 'react';
 import { useAuth } from '../AuthContext';
 import { AppRoute } from '../../types';
 
-import MercorLogo from '../icons/MercorLogo';
+import { WindLogo } from '../icons/WindLogo';
 import HomeIcon from '../icons/HomeIcon';
 import CompassIcon from '../icons/MicIcon';
 import BriefcaseIcon from '../icons/BriefcaseIcon';
@@ -199,7 +199,7 @@ const ProfileSidebar: React.FC<ProfileSidebarProps> = ({ setRoute, openSearchMod
             <div>
                 <div className="flex h-14 items-center justify-center lg:justify-start border-b border-white/10 px-4 lg:h-[60px] lg:px-6">
                     <a href="#" onClick={(e) => {e.preventDefault(); handleNav({name: 'home'}, 'Home')}} className="flex items-center gap-2 font-semibold">
-                        <MercorLogo className="h-6 w-6 text-cyan-400" />
+                        <WindLogo size={28} />
                         <span className="hidden lg:inline">Wind AI</span>
                     </a>
                 </div>

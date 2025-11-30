@@ -64,7 +64,7 @@ const ReferralsPage: React.FC<ReferralsPageProps> = ({ setRoute }) => {
             </svg>
           </div>
           <h2 className="text-2xl font-bold mb-2">Invite your connections, earn rewards</h2>
-          <p className="text-neutral-400 mb-6">The easiest way to make referrals is by inviting your LinkedIn connections to join Mercor.</p>
+          <p className="text-neutral-400 mb-6">The easiest way to make referrals is by inviting your LinkedIn connections to join Wind AI.</p>
           
           <ul className="space-y-4 text-left max-w-xs mx-auto mb-8">
             <li className="flex items-center gap-3">

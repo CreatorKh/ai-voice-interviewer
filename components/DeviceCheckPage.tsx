@@ -10,6 +10,13 @@ interface DeviceCheckPageProps {
   applicationData: ApplicationData;
 }
 
+// Noise suppression icon
+const NoiseIcon = () => (
+  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
+    <path strokeLinecap="round" strokeLinejoin="round" d="M9.348 14.652a3.75 3.75 0 0 1 0-5.304m5.304 0a3.75 3.75 0 0 1 0 5.304m-7.425 2.121a6.75 6.75 0 0 1 0-9.546m9.546 0a6.75 6.75 0 0 1 0 9.546M5.106 18.894c-3.808-3.807-3.808-9.98 0-13.788m13.788 0c3.808 3.807 3.808 9.98 0 13.788M12 12h.008v.008H12V12Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+  </svg>
+);
+
 const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applicationData }) => {
   const [cams, setCams] = useState<MediaDeviceInfo[]>([]);
   const [mics, setMics] = useState<MediaDeviceInfo[]>([]);
@@ -17,6 +24,11 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
   const [micId, setMicId] = useState("");
   const [micLevel, setMicLevel] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  
+  // Ambient noise detection (automatic - no manual settings)
+  const [ambientNoiseLevel, setAmbientNoiseLevel] = useState<'quiet' | 'moderate' | 'noisy' | 'detecting'>('detecting');
+  const [noiseRecommendation, setNoiseRecommendation] = useState<string>('');
+  const [autoNoiseLevel, setAutoNoiseLevel] = useState<'low' | 'medium' | 'high'>('medium');
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -100,10 +112,42 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
 
     analyserRef.current = analyser;
     const data = new Uint8Array(analyser.frequencyBinCount);
+    
+    // Ambient noise detection - collect samples for 2 seconds
+    const noiseSamples: number[] = [];
+    const noiseDetectionDuration = 2000;
+    const noiseDetectionStart = Date.now();
+    setAmbientNoiseLevel('detecting');
+    
     const tick = () => {
       analyser.getByteFrequencyData(data);
       const avg = data.reduce((a, b) => a + b, 0) / data.length;
       setMicLevel(avg / 255);
+      
+      // Collect noise samples during detection period
+      if (Date.now() - noiseDetectionStart < noiseDetectionDuration) {
+        noiseSamples.push(avg);
+      } else if (noiseSamples.length > 0 && ambientNoiseLevel === 'detecting') {
+        // Calculate average ambient noise
+        const avgNoise = noiseSamples.reduce((a, b) => a + b, 0) / noiseSamples.length;
+        
+        // Auto-configure noise suppression based on detected level
+        if (avgNoise < 12) {
+          setAmbientNoiseLevel('quiet');
+          setAutoNoiseLevel('low');
+          setNoiseRecommendation('Отлично! Тихое окружение.');
+        } else if (avgNoise < 35) {
+          setAmbientNoiseLevel('moderate');
+          setAutoNoiseLevel('medium');
+          setNoiseRecommendation('Шумоподавление настроено автоматически.');
+        } else {
+          setAmbientNoiseLevel('noisy');
+          setAutoNoiseLevel('high');
+          setNoiseRecommendation('Обнаружен шум. Максимальное шумоподавление включено.');
+        }
+        noiseSamples.length = 0; // Clear samples
+      }
+      
       animationFrameRef.current = requestAnimationFrame(tick);
     };
     tick();
@@ -115,9 +159,13 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
   }, [camId, micId]); 
 
   const handleStart = () => {
-      // Save preferences explicity
+      // Save preferences explicitly
       if (camId) localStorage.setItem('preferredCamId', camId);
       if (micId) localStorage.setItem('preferredMicId', micId);
+      
+      // Save auto-detected noise suppression settings
+      localStorage.setItem('noiseSuppressionEnabled', 'true');
+      localStorage.setItem('noiseSuppressionLevel', autoNoiseLevel);
       
       setRoute({name: "interviewLive", jobId: job.id, applicationData});
   };
@@ -154,6 +202,69 @@ const DeviceCheckPage: React.FC<DeviceCheckPageProps> = ({ job, setRoute, applic
              </select>
           </div>
         </div>
+
+        {/* Ambient Noise Detection */}
+        <div className={`mt-4 p-3 rounded-xl border transition-all ${
+          ambientNoiseLevel === 'detecting' ? 'bg-white/[0.02] border-white/10' :
+          ambientNoiseLevel === 'quiet' ? 'bg-emerald-500/10 border-emerald-500/30' :
+          ambientNoiseLevel === 'moderate' ? 'bg-yellow-500/10 border-yellow-500/30' :
+          'bg-red-500/10 border-red-500/30'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+              ambientNoiseLevel === 'detecting' ? 'bg-white/10' :
+              ambientNoiseLevel === 'quiet' ? 'bg-emerald-500/20' :
+              ambientNoiseLevel === 'moderate' ? 'bg-yellow-500/20' :
+              'bg-red-500/20'
+            }`}>
+              {ambientNoiseLevel === 'detecting' ? (
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              ) : ambientNoiseLevel === 'quiet' ? (
+                <span className="text-emerald-400">✓</span>
+              ) : ambientNoiseLevel === 'moderate' ? (
+                <span className="text-yellow-400">!</span>
+              ) : (
+                <span className="text-red-400">⚠</span>
+              )}
+            </div>
+            <div className="flex-1">
+              <p className={`text-sm font-medium ${
+                ambientNoiseLevel === 'detecting' ? 'text-neutral-300' :
+                ambientNoiseLevel === 'quiet' ? 'text-emerald-400' :
+                ambientNoiseLevel === 'moderate' ? 'text-yellow-400' :
+                'text-red-400'
+              }`}>
+                {ambientNoiseLevel === 'detecting' ? 'Анализ окружения...' :
+                 ambientNoiseLevel === 'quiet' ? 'Тихое окружение' :
+                 ambientNoiseLevel === 'moderate' ? 'Умеренный шум' :
+                 'Высокий шум!'}
+              </p>
+              {noiseRecommendation && ambientNoiseLevel !== 'detecting' && (
+                <p className="text-xs text-neutral-400 mt-0.5">{noiseRecommendation}</p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Auto Noise Suppression Status */}
+        {ambientNoiseLevel !== 'detecting' && (
+          <div className="mt-4 p-3 rounded-xl bg-white/[0.03] border border-white/10">
+            <div className="flex items-center gap-2">
+              <NoiseIcon />
+              <span className="text-sm text-neutral-300">Шумоподавление</span>
+              <span className="text-[10px] px-1.5 py-0.5 rounded bg-cyan-500/20 text-cyan-400 font-medium">AUTO</span>
+              <span className={`ml-auto text-xs px-2 py-1 rounded-full ${
+                autoNoiseLevel === 'low' ? 'bg-emerald-500/20 text-emerald-400' :
+                autoNoiseLevel === 'medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                'bg-orange-500/20 text-orange-400'
+              }`}>
+                {autoNoiseLevel === 'low' && 'Минимум'}
+                {autoNoiseLevel === 'medium' && 'Стандарт'}
+                {autoNoiseLevel === 'high' && 'Максимум'}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <aside className="space-y-6">

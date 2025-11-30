@@ -1,6 +1,6 @@
 // Main evaluation module - optimized for single LLM call
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { TEXT_MODEL_ID } from '../config/models';
 import { TranscriptEntry, Speaker, Job, ApplicationData } from '../types';
 import { FinalEvaluation, TurnEvaluation, SkillScore, AntiCheatReport } from './types';
@@ -9,7 +9,7 @@ import { PIPELINE_CONFIG } from '../services/interviewPipeline/pipelineConfig';
 import { runAntiCheat as runNewAntiCheat } from '../services/interviewPipeline/antiCheat';
 import { safeGenerateJSON, getLLMUsage } from '../services/interviewPipeline/llmClient';
 
-const client = new GoogleGenerativeAI(process.env.API_KEY as string);
+const client = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 // 1. Превратить transcript в массив Q/A блоков
 function groupIntoTurns(transcript: TranscriptEntry[]): { question: string; answer: string }[] {
@@ -64,7 +64,7 @@ function evaluateTurnLocally(
   const hasNumbers = /\d/.test(text);
   const hasTechKeywords = /(sql|python|pandas|model|api|pipeline|docker|kubernetes|ml|data|react|javascript|typescript|node|algorithm|database|server|client|frontend|backend)/i.test(text);
   const lengthScore = Math.min(100, text.length * 2); // чем длиннее, тем больше (но до 100)
-  
+
   const fillerWords = ['ээ', 'э', 'ну', 'как бы', 'типа', 'um', 'uh', 'you know', 'like', 'so'];
   const fillerCount = text.split(/\s+/).filter(w => fillerWords.includes(w.toLowerCase())).length;
   const hasLowFillers = fillerCount < 3;
@@ -108,7 +108,7 @@ function evaluateTurnLocally(
   score += hasTechKeywords ? 20 : 0; // технические ключевые слова
   score += hasNumbers ? 10 : 0; // конкретные числа/примеры
   score += hasLowFillers ? 10 : 0; // мало filler words
-  
+
   // Штрафы
   if (text.length < 20) score -= 20;
   if (fillerCount > 5) score -= 10;
@@ -206,7 +206,7 @@ export async function generateFinalEvaluation(
   }
 
   // Локальная оценка всех turns (БЕЗ LLM)
-  const turnEvaluations: TurnEvaluation[] = turns.map(t => 
+  const turnEvaluations: TurnEvaluation[] = turns.map(t =>
     evaluateTurnLocally(t.question, t.answer)
   );
 
@@ -245,7 +245,7 @@ export async function generateFinalEvaluation(
       return `Q${idx + 1}: ${turn.topic} (Score: ${turn.score}/100)\n${strengths ? strengths + '\n' : ''}${weaknesses ? weaknesses + '\n' : ''}${flags ? flags : ''}`;
     }).join('\n\n');
 
-    const skillsSummary = skills.length > 0 
+    const skillsSummary = skills.length > 0
       ? skills.map(s => `${s.name}: ${s.score}/100`).join(', ')
       : 'No specific skills evaluated';
 

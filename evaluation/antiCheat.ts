@@ -1,11 +1,11 @@
 // Anti-cheat analysis module
 
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GoogleGenAI } from '@google/genai';
 import { TEXT_MODEL_ID } from '../config/models';
 import { TranscriptEntry, Job, ApplicationData, Speaker } from '../types';
 import { TurnEvaluation, AntiCheatReport, AntiCheatSignal } from './types';
 
-const client = new GoogleGenerativeAI(process.env.API_KEY as string);
+const client = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
 
 export async function runAntiCheat(
   transcript: TranscriptEntry[],
@@ -70,15 +70,15 @@ Be conservative: if there is no clear evidence, set overallRisk to "low".
 Return ONLY valid JSON, no additional text.`;
 
   try {
-    const model = client.getGenerativeModel({ model: TEXT_MODEL_ID });
-    const result = await model.generateContent({
+    const result = await client.models.generateContent({
+      model: TEXT_MODEL_ID,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: {
+      config: {
         responseMimeType: 'application/json',
       },
     });
 
-    const text = result.response.text().trim();
+    const text = result.text ? result.text.trim() : "";
     const jsonMatch = text.match(/\{[\s\S]*\}/);
     const finalJson = jsonMatch ? jsonMatch[0] : text;
     const parsed = JSON.parse(finalJson);

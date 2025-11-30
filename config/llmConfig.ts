@@ -4,7 +4,7 @@ export type LLMProvider = "openai" | "google_gemini";
 
 export interface LLMConfig {
   provider: LLMProvider;
-  modelId: string;    // например "gpt-4o" или "models/gemini-1.5-flash-latest"
+  modelId: string;    // например "gpt-4o" или "gemini-1.5-flash"
   apiKey: string;
   realtimeMode?: boolean;  // если нужно real-time режим (для live интервью)
 }
@@ -14,21 +14,21 @@ export interface LLMConfig {
 const getDefaultConfig = (): LLMConfig => {
   const openaiKey = process.env.OPENAI_API_KEY || "";
   const geminiKey = process.env.GEMINI_API_KEY || process.env.API_KEY || "";
-  
-  // Если есть OpenAI ключ, используем OpenAI по умолчанию
+
+  // Если есть OpenAI ключ, используем OpenAI по умолчанию (лучшее качество)
   if (openaiKey) {
     return {
       provider: "openai",
-      modelId: "gpt-4o",
+      modelId: "gpt-4o", // Лучшая модель OpenAI для оценки
       apiKey: openaiKey,
       realtimeMode: false, // OpenAI не поддерживает realtime mode как Gemini
     };
   }
-  
-  // Иначе используем Gemini
+
+  // Иначе используем Gemini (fallback)
   return {
     provider: "google_gemini",
-    modelId: "models/gemini-1.5-flash-latest",
+    modelId: "gemini-2.0-flash-exp", // Новая быстрая модель Gemini
     apiKey: geminiKey,
     realtimeMode: true,
   };

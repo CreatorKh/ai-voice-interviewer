@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { AppRoute } from '../types';
 import { WindLogo, WindLogoCompact } from './icons/WindLogo';
+import { useAuth } from './AuthContext';
 
 // --- Inline Icons ---
 const ArrowRightIcon = ({ className = "" }: { className?: string }) => (
@@ -143,6 +144,7 @@ const TEAM_MEMBERS = [
 ];
 
 const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
+  const { user, userRole } = useAuth();
   const [isVisible, setIsVisible] = useState(false);
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
 
@@ -201,19 +203,31 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
             <a href="#team" className="hover:text-white transition-colors">Команда</a>
             <a href="#roadmap" className="hover:text-white transition-colors">Roadmap</a>
             <a href="#tech" className="hover:text-white transition-colors">Технологии</a>
+          </div>
+          <div className="flex items-center gap-3">
+            {!user && (
+                <button
+                onClick={() => setRoute({ name: 'hirerLanding' })}
+                className="hidden md:block px-4 py-2 rounded-full border border-emerald-500/30 hover:bg-emerald-500/10 text-emerald-400 transition-all text-sm font-medium"
+                >
+                Для HR
+                </button>
+            )}
+            
             <button
-              onClick={() => setRoute({ name: 'hirerLanding' })}
-              className="hover:text-white transition-colors"
+              onClick={() => {
+                  if (user) {
+                      if (userRole === 'hirer') setRoute({ name: 'hirerDashboard' });
+                      else setRoute({ name: 'candidateDashboard' });
+                  } else {
+                      setRoute({ name: 'explore' });
+                  }
+              }}
+              className="px-5 py-2.5 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-all text-sm shadow-lg shadow-white/10"
             >
-              Для HR
+              {user ? 'Кабинет' : 'Попробовать'}
             </button>
           </div>
-          <button
-            onClick={() => setRoute({ name: 'explore' })}
-            className="px-5 py-2.5 bg-white text-black font-semibold rounded-full hover:bg-neutral-200 transition-all text-sm shadow-lg shadow-white/10"
-          >
-            Попробовать
-          </button>
         </div>
       </nav>
 
@@ -662,6 +676,93 @@ const LandingPage: React.FC<LandingPageProps> = ({ setRoute }) => {
               </div>
             </div>
           </TiltCard>
+        </div>
+      </section>
+
+      {/* ===== FOR EMPLOYERS SECTION ===== */}
+      <section className="py-24 px-6 relative overflow-hidden">
+        <div className="absolute inset-0 bg-emerald-950/10" />
+        <div className="max-w-6xl mx-auto relative z-10">
+           <div className="p-1 rounded-3xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-emerald-500">
+            <div className="bg-neutral-900 rounded-[22px] p-8 md:p-16 overflow-hidden relative">
+              {/* Background Glow */}
+              <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[120px] pointer-events-none -translate-y-1/2 translate-x-1/2" />
+              
+              <div className="grid md:grid-cols-2 gap-12 items-center relative z-10">
+                <div>
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-xs font-bold uppercase tracking-wider mb-6">
+                    Для Компаний и HR
+                  </div>
+                  <h2 className="text-3xl md:text-5xl font-bold mb-6">
+                    Нанимайте лучших <br/>
+                    <span className="text-emerald-400">в 10 раз быстрее</span>
+                  </h2>
+                  <p className="text-lg text-neutral-400 mb-8">
+                    Получите доступ к базе проверенных кандидатов с готовыми AI-интервью, детальными отчетами и оценкой навыков.
+                  </p>
+                  
+                  <ul className="space-y-4 mb-10">
+                    {[
+                      'Доступ к базе верифицированных кандидатов',
+                      'Детальные отчеты по Hard & Soft skills',
+                      'Видео-записи интервью и транскрипция',
+                      'Экономия до 40 часов работы рекрутера в неделю'
+                    ].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 text-neutral-300">
+                        <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                          <CheckIcon className="w-4 h-4 text-emerald-400" />
+                        </div>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <button
+                    onClick={() => setRoute({ name: 'hirerLanding' })}
+                    className="px-8 py-4 bg-emerald-500 hover:bg-emerald-400 text-black font-bold rounded-xl transition-all shadow-lg shadow-emerald-500/20 flex items-center gap-2 group"
+                  >
+                    Кабинет работодателя
+                    <ArrowRightIcon className="w-5 h-5 transition-transform group-hover:translate-x-1" />
+                  </button>
+                </div>
+                
+                <div className="relative">
+                  <TiltCard intensity={8}>
+                    <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
+                       {/* Abstract UI representation of Hirer Dashboard */}
+                       <div className="bg-neutral-800 p-4 border-b border-white/5 flex items-center gap-4">
+                          <div className="w-3 h-3 rounded-full bg-red-500/50" />
+                          <div className="w-3 h-3 rounded-full bg-yellow-500/50" />
+                          <div className="w-3 h-3 rounded-full bg-green-500/50" />
+                          <div className="ml-auto h-2 w-20 bg-white/10 rounded-full" />
+                       </div>
+                       <div className="bg-neutral-900 p-6 space-y-4">
+                          <div className="flex gap-4">
+                             <div className="w-1/3 h-32 bg-white/5 rounded-xl animate-pulse" />
+                             <div className="w-1/3 h-32 bg-white/5 rounded-xl animate-pulse delay-100" />
+                             <div className="w-1/3 h-32 bg-white/5 rounded-xl animate-pulse delay-200" />
+                          </div>
+                          <div className="h-4 w-3/4 bg-white/10 rounded-full" />
+                          <div className="h-4 w-1/2 bg-white/10 rounded-full" />
+                          <div className="pt-4 border-t border-white/5 flex gap-4">
+                             <div className="h-10 w-full bg-emerald-500/20 rounded-lg border border-emerald-500/30" />
+                          </div>
+                       </div>
+                       
+                       {/* Floating Badge */}
+                       <div className="absolute -bottom-6 -right-6 bg-neutral-800 p-4 rounded-xl border border-white/10 shadow-xl flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-emerald-500 flex items-center justify-center text-black font-bold">98%</div>
+                          <div>
+                             <div className="text-xs text-neutral-400">Match Score</div>
+                             <div className="text-sm font-bold text-white">High Fit</div>
+                          </div>
+                       </div>
+                    </div>
+                  </TiltCard>
+                </div>
+              </div>
+            </div>
+           </div>
         </div>
       </section>
 

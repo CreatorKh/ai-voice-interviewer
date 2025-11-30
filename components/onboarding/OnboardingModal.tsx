@@ -39,8 +39,8 @@ const OnboardingModal: React.FC<OnboardingModalProps> = ({ isOpen, onClose }) =>
 
   const getStepTitle = () => {
       switch (currentStep) {
-          case 1: return "Welcome to Mercor!";
-          case 2: return "Welcome to Mercor!";
+          case 1: return "Welcome to Wind AI!";
+          case 2: return "Welcome to Wind AI!";
           case 3: return "Confirm your information";
           case 4: return "Upload a recent resume or CV";
           case 5: return "Work Experience & Education";
